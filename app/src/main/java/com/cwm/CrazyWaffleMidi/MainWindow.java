@@ -1,12 +1,11 @@
 package com.cwm.CrazyWaffleMidi;
 
+import io.qt.core.QCoreApplication;
+import io.qt.core.QRect;
 import io.qt.gui.QAction;
-import io.qt.gui.QDesktopServices;
-import io.qt.widgets.QLabel;
 import io.qt.widgets.QMainWindow;
 import io.qt.widgets.QMenu;
 import io.qt.widgets.QMenuBar;
-import io.qt.widgets.QPushButton;
 import io.qt.widgets.QVBoxLayout;
 import io.qt.widgets.QWidget;
 
@@ -28,12 +27,103 @@ public class MainWindow extends QMainWindow {
     public QVBoxLayout verticalLayout;
     public QMenuBar menuBar;
     public QMenu file;
+    public QMenu edit;
     public QMenu export;
     public QMenu view;
     public QMenu settings;
 
     public MainWindow() {
+        if (objectName().isEmpty()) {
+            setObjectName(Properties.NAME);
+        }
+        this.resize(800, 600);
+        open = new QAction(this);
+        open.setObjectName("action_open");
+        save = new QAction(this);
+        save.setObjectName("action_save");
+        saveAs = new QAction(this);
+        saveAs.setObjectName("action_save_as");
+        mp3 = new QAction(this);
+        mp3.setObjectName("action_mp3");
+        ogg = new QAction(this);
+        ogg.setObjectName("action_ogg");
+        track = new QAction(this);
+        track.setObjectName("action_track");
+        pianoRoll = new QAction(this);
+        pianoRoll.setObjectName("action_piano_roll");
+        synth = new QAction(this);
+        synth.setObjectName("action_synth");
+        zoomIn = new QAction(this);
+        zoomIn.setObjectName("action_zoom_in");
+        zoomOut = new QAction(this);
+        zoomOut.setObjectName("action_zoom_out");
+        resetZoom = new QAction(this);
+        resetZoom.setObjectName("action_reset_zoom");
 
+        centralWidget = new QWidget(this);
+        centralWidget.setObjectName("central_widget");
+
+        menuBar = new QMenuBar(this);
+        menuBar.setObjectName("menu_bar");
+        menuBar.setGeometry(new QRect(0, 0, 800, 30));
+
+        file = new QMenu(menuBar);
+        file.setObjectName("menu_file");
+        edit = new QMenu(menuBar);
+        edit.setObjectName("menu_edit");
+        export = new QMenu(menuBar);
+        export.setObjectName("menu_export");
+        view = new QMenu(menuBar);
+        view.setObjectName("menu_view");
+        settings = new QMenu(menuBar);
+        settings.setObjectName("menu_settings");
+
+        setMenuBar(menuBar);
+
+        menuBar.addAction(file.menuAction());
+        menuBar.addAction(edit.menuAction());
+        menuBar.addAction(view.menuAction());
+        menuBar.addAction(settings.menuAction());
+
+        file.addAction(open);
+        file.addAction(save);
+        file.addAction(saveAs);
+        file.addAction(export.menuAction());
+        
+        export.addAction(mp3);
+        export.addAction(ogg);
+
+        edit.addAction(track);
+        edit.addAction(pianoRoll);
+        edit.addAction(synth);
+
+        view.addAction(zoomIn);
+        view.addAction(zoomOut);
+        view.addAction(resetZoom);
+
+        retranslateUi(this);
+
+        show();
+    }
+
+    private void retranslateUi(QMainWindow window) {
+        window.setWindowTitle(QCoreApplication.translate("MainWindow", Properties.NAME));
+        open.setText(QCoreApplication.translate("MainWindow", "&Open"));
+        save.setText(QCoreApplication.translate("MainWindow", "&Save"));
+        saveAs.setText(QCoreApplication.translate("MainWindow", "Save &as"));
+        mp3.setText(QCoreApplication.translate("MainWindow", ".mp&3"));
+        ogg.setText(QCoreApplication.translate("MainWindow", ".&ogg"));
+        track.setText(QCoreApplication.translate("MainWindow", "&Track"));
+        pianoRoll.setText(QCoreApplication.translate("MainWindow", "&Piano roll"));
+        synth.setText(QCoreApplication.translate("MainWindow", "&Synth"));
+        zoomIn.setText(QCoreApplication.translate("MainWindow", "Zoom &in"));
+        zoomOut.setText(QCoreApplication.translate("MainWindow", "Zoom &out"));
+        resetZoom.setText(QCoreApplication.translate("MainWindow", "&Reset zoom"));
+        file.setTitle(QCoreApplication.translate("MainWindow", "&File"));
+        export.setTitle(QCoreApplication.translate("MainWindow", "&Export"));
+        edit.setTitle(QCoreApplication.translate("MainWindow", "&Edit"));
+        view.setTitle(QCoreApplication.translate("MainWindow", "&View"));
+        settings.setTitle(QCoreApplication.translate("MainWindow", "&Settings"));
     }
 
     /*
