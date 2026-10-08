@@ -17,12 +17,14 @@ repositories {
 
 dependencies {
     // Use JUnit Jupiter for testing.
-    testImplementation(libs.junit.jupiter)
+    // testImplementation(libs.junit.jupiter)
 
-    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
+    // testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 
     // This dependency is used by the application.
-    implementation(libs.guava)
+    // implementation(libs.guava)
+    implementation("io.qtjambi:qtjambi:6.12.0")
+    // runtimeOnly("io.qtjambi:qtjambi-native-linux-x64:6.12.0")
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
