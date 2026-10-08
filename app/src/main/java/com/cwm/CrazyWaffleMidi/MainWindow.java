@@ -16,7 +16,7 @@ public class MainWindow extends QMainWindow {
 
         QPushButton repoButton = new QPushButton(this);
         repoButton.setText("GitHub");
-        repoButton.pressed.connect(()->{QDesktopServices.openUrl(Properties.repo);});
+        repoButton.pressed.connect(()->QDesktopServices.openUrl(Properties.repo));
 
         show();
     }
