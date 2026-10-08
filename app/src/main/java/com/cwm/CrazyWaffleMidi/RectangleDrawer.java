@@ -16,4 +16,7 @@ public class RectangleDrawer extends QWidget {
         painter.setBrush(new QBrush(color, Qt.BrushStyle.SolidPattern));
         painter.drawRect(rect);
     }
+    public RectangleDrawer(QWidget parent) {
+        super(parent);
+    }
 }
