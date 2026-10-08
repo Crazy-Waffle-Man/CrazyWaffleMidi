@@ -1,4 +1,4 @@
-package app.src.cwm.CrazyWaffleMidi;
+package com.cwm.CrazyWaffleMidi;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 

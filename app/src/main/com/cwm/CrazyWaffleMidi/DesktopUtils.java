@@ -1,4 +1,4 @@
-package app.src.cwm.CrazyWaffleMidi;
+package com.cwm.CrazyWaffleMidi;
 import java.awt.Desktop;
 import java.awt.Desktop.Action;
 import java.net.URI;
