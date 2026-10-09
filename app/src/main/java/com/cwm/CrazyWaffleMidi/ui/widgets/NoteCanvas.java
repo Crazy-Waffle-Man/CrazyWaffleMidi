@@ -63,6 +63,9 @@ public class NoteCanvas extends QWidget {
         }
     }
     private void drawPreviewNote(QPainter painter) {
+        if (mode == EditMode.IDLE) {
+            return;
+        }
         final double x = PianoRollViewState.getX(startTick);
         final double y = PianoRollViewState.getY(pitch);
         final double w = PianoRollViewState.getX(startTick + durationTicks);
@@ -82,8 +85,6 @@ public class NoteCanvas extends QWidget {
     }
 
     private EditMode mode = EditMode.IDLE;
-    private double pressX;
-    private double pressY;
     private long startTick;
     private long durationTicks;
     private long activeNoteId = -1;
@@ -105,7 +106,7 @@ public class NoteCanvas extends QWidget {
                 return;
             }
             startTick = snapEnabled? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x);
-            durationTicks = Math.max(startTick - (snapEnabled? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x)), 1);
+            durationTicks = 1;
             mode = EditMode.CREATE;
         }
         //TODO: move/resize notes
@@ -115,6 +116,33 @@ public class NoteCanvas extends QWidget {
     protected void mouseMoveEvent(@Nullable QMouseEvent event) {
         if (mode == EditMode.IDLE) {
             return;
+        }
+       switch (mode) {
+        case EditMode.CREATE:
+            final double x = event.position().x();
+            final double y = event.position().y();
+            final long endTick = PianoRollViewState.getTick(x);
+            durationTicks = Math.max(endTick - startTick, 1); // The note must have *some* length
+            pitch = PianoRollViewState.getPitch(y);
+            break;
+        default:
+            break;
+       }
+    }
+
+    @Override
+    protected void mouseReleaseEvent(@Nullable QMouseEvent event) {
+        if (event.button() != Qt.MouseButton.LeftButton) {
+            return;
+        }
+        switch (mode) {
+            case EditMode.CREATE:
+                notes.addMidiNote(pitch, startTick, durationTicks, 64);
+                mode = EditMode.IDLE;
+                //If only I could set the state machine note information to null... Alas...
+                break;
+            default:
+                break;
         }
     }
 
