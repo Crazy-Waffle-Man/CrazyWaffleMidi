@@ -1,9 +1,10 @@
-package com.cwm.CrazyWaffleMidi;
+package com.cwm.CrazyWaffleMidi.ui.widgets;
+
+import com.cwm.CrazyWaffleMidi.Properties;
 
 import io.qt.core.QCoreApplication;
 import io.qt.core.QRect;
 import io.qt.gui.QAction;
-import io.qt.gui.QColor;
 import io.qt.widgets.QMainWindow;
 import io.qt.widgets.QMenu;
 import io.qt.widgets.QMenuBar;
@@ -32,8 +33,6 @@ public class MainWindow extends QMainWindow {
     public QMenu export = new QMenu(menuBar);
     public QMenu view = new QMenu(menuBar);
     public QMenu settings = new QMenu(menuBar);
-
-    public RectangleDrawer pianoRollEditor = new RectangleDrawer(centralWidget);
 
     public MainWindow() {
         if (objectName().isEmpty()) {
@@ -88,7 +87,6 @@ public class MainWindow extends QMainWindow {
         view.addAction(resetZoom);
 
         retranslateUi(this);
-        pianoRollEditor.paintRectangle(new QRect(100, 100, 50, 50), new QColor(120, 230, 70));
 
         show();
     }
