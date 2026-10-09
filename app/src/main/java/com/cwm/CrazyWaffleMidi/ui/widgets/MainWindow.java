@@ -1,6 +1,7 @@
 package com.cwm.CrazyWaffleMidi.ui.widgets;
 
 import com.cwm.CrazyWaffleMidi.Properties;
+import com.cwm.CrazyWaffleMidi.midi.MidiNoteSequence;
 
 import io.qt.core.QCoreApplication;
 import io.qt.core.QRect;
@@ -9,7 +10,6 @@ import io.qt.widgets.QMainWindow;
 import io.qt.widgets.QMenu;
 import io.qt.widgets.QMenuBar;
 import io.qt.widgets.QVBoxLayout;
-import io.qt.widgets.QWidget;
 
 
 // Qt Widgets Designer goes crazy... Unfortunately no export for Java tho so I have to write this manually
@@ -25,8 +25,8 @@ public class MainWindow extends QMainWindow {
     public QAction zoomIn = new QAction(this);
     public QAction zoomOut = new QAction(this);
     public QAction resetZoom = new QAction(this);
-    public QWidget centralWidget = new QWidget(this);
-    public QVBoxLayout verticalLayout;
+    public NoteCanvas centralWidget = new NoteCanvas(new MidiNoteSequence());
+    public QVBoxLayout verticalLayout = new QVBoxLayout(this);
     public QMenuBar menuBar = new QMenuBar(this);
     public QMenu file = new QMenu(menuBar);
     public QMenu edit = new QMenu(menuBar);
@@ -85,6 +85,12 @@ public class MainWindow extends QMainWindow {
         view.addAction(zoomIn);
         view.addAction(zoomOut);
         view.addAction(resetZoom);
+
+        // verticalLayout.addWidget(menuBar);
+        centralWidget.setParent(this);
+        verticalLayout.addWidget(menuBar);
+        verticalLayout.addWidget(centralWidget);
+        this.setLayout(verticalLayout);
 
         retranslateUi(this);
 

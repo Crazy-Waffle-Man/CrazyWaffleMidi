@@ -16,7 +16,7 @@ import io.qt.widgets.QWidget;
 
 public class NoteCanvas extends QWidget {
     public final MidiNoteSequence notes;
-    private boolean snapEnabled = true;
+    private boolean snapEnabled = false; //TODO: Adjust the numbers so that this doesn't break things when set to true
     
     public NoteCanvas(MidiNoteSequence notes) {
         this.notes = notes;
@@ -57,7 +57,16 @@ public class NoteCanvas extends QWidget {
             final double x = PianoRollViewState.getX(note.startTick());
             final double y = PianoRollViewState.getY(note.pitch());
             final double w = PianoRollViewState.getX(note.endTick());
-            painter.fillRect(new QRectF(x + 1, y + 1, Math.max(1, w - x - 2), PianoRollViewState.pixelsPerSemitone - 2), new QColor(74, 170, 135));
+            if (selectedNotes != null) {
+                painter.fillRect(
+                    new QRectF(x + 1, y + 1, Math.max(1, w - x - 2), PianoRollViewState.pixelsPerSemitone - 2), 
+                    selectedNotes.contains(note)
+                        ? new QColor(198, 135, 189) 
+                        : new QColor(74, 170, 135)
+                );
+            } else {
+                painter.fillRect(new QRectF(x + 1, y + 1, Math.max(1, w - x - 2), PianoRollViewState.pixelsPerSemitone - 2), new QColor(74, 170, 135));
+            }
         }
     }
     private void drawPreviewNote(QPainter painter) {
@@ -77,7 +86,7 @@ public class NoteCanvas extends QWidget {
     public static enum EditMode {
         IDLE,
         CREATE,
-        MOVE,
+        MOVE, // Drop notes back in where ID matches
         RESIZE,
         SELECT
     }
@@ -85,6 +94,8 @@ public class NoteCanvas extends QWidget {
     private EditMode mode = EditMode.IDLE;
     private long startTick;
     private long durationTicks;
+    private double pressX;
+    private double pressY;
     private MidiNoteSequence selectedNotes;
     private int pitch;
     private long snapInterval = PianoRollViewState.ticksPerQuarter;
@@ -94,7 +105,9 @@ public class NoteCanvas extends QWidget {
         if (event.button() == Qt.MouseButton.LeftButton) {
             final double x = event.position().x();
             final double y = event.position().y();
-            MidiNoteSequence hits = findNotesAt(x, y);
+            MidiNoteSequence hits = findNotesAt(x, y); 
+            // What's happening here?
+            // Either hits is empty (findNotesAt)
             if (hits.isEmpty()) { // Create note if there isn't one here
                 pitch = PianoRollViewState.getPitch(y);
                 if (pitch < 0 || pitch > 127) {
@@ -103,23 +116,30 @@ public class NoteCanvas extends QWidget {
                 startTick = snapEnabled? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x);
                 durationTicks = 1;
                 mode = EditMode.CREATE;
+                update();
+                return;
             }
-        //TODO: move/resize notes
+        } else if (event.button() == Qt.MouseButton.RightButton) {
+            pressX = event.position().x();
+            pressY = event.position().y();
+            mode = EditMode.SELECT;
+            return;
         }
     }
 
     @Override
     protected void mouseMoveEvent(@Nullable QMouseEvent event) {
-        if (mode == EditMode.IDLE) {
-            return;
-        }
        switch (mode) {
+        case EditMode.IDLE:
+            return;
         case EditMode.CREATE:
             final double x = event.position().x();
             final double y = event.position().y();
-            final long endTick = PianoRollViewState.getTick(x);
-            durationTicks = Math.max(endTick - startTick, 1); // The note must have *some* length
+            final long endTick = snapEnabled? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x);
+            final long delta = endTick - startTick;
+            durationTicks = Math.max(delta, 1); // The note must have *some* length
             pitch = PianoRollViewState.getPitch(y);
+            update();
             break;
         default:
             break;
@@ -135,7 +155,20 @@ public class NoteCanvas extends QWidget {
             case EditMode.CREATE:
                 notes.addMidiNote(pitch, startTick, durationTicks, 64);
                 mode = EditMode.IDLE;
+                update();
                 //If only I could set the state machine note information to null... Alas...
+                break;
+            case EditMode.SELECT:
+                final double x = event.position().x();
+                final double y = event.position().y();
+                QRectF rect = new QRectF(pressX, pressY, x, y);
+                for (MidiNote note : notes) {
+                    if (!rect.contains(PianoRollViewState.getX(note.startTick()), PianoRollViewState.getY(note.pitch()))) {
+                        continue;
+                    }
+                    selectedNotes.add(note);
+                }
+                update();
                 break;
             default:
                 break;

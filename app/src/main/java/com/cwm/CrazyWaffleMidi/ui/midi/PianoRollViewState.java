@@ -20,7 +20,9 @@ public final class PianoRollViewState {
     public static long getTick(double x) { 
         // Shouldn't be used to set midi note data; midi notes are the source of truth.
         // Use when converting cursor position for creating a new note
-        return horizontalScrollTick * Math.round(x * ticksPerQuarter / pixelsPerQuarter);
+        final double ticksPerPixel = pixelsPerQuarter / ticksPerQuarter;
+        final double ticks = x * ticksPerPixel;
+        return horizontalScrollTick + Math.round(ticks);
     }
     public static int getPitch(double y) {
         return topPitch - (int) Math.floor(y / pixelsPerSemitone);

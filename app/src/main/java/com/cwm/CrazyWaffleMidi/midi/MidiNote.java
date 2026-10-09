@@ -8,6 +8,7 @@ public class MidiNote {
     private int velocity; // volume (1-127)
 
     public MidiNote(long id, int pitch, long startTick, long durationTicks, int velocity) {
+        System.out.println(String.format("Init a MidiNote with %d pitch and %d ticks long", pitch, durationTicks));
         this.id = id;
         this.pitch = Math.clamp(pitch, 0, 127);
         this.startTick = startTick;
