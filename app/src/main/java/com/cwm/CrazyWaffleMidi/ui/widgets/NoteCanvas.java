@@ -86,9 +86,9 @@ public class NoteCanvas extends QWidget {
     public static enum EditMode {
         IDLE,
         CREATE,
-        MOVE, // Drop notes back in where ID matches
-        RESIZE,
-        SELECT
+        MOVE, // Drop notes back in where ID matches TODO: implement
+        RESIZE, // TODO: implement
+        SELECT // TODO: fix
     }
 
     private EditMode mode = EditMode.IDLE;
@@ -106,8 +106,6 @@ public class NoteCanvas extends QWidget {
             final double x = event.position().x();
             final double y = event.position().y();
             MidiNoteSequence hits = findNotesAt(x, y); 
-            // What's happening here?
-            // Either hits is empty (findNotesAt)
             if (hits.isEmpty()) { // Create note if there isn't one here
                 pitch = PianoRollViewState.getPitch(y);
                 if (pitch < 0 || pitch > 127) {
