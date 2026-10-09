@@ -25,7 +25,7 @@ public class MainWindow extends QMainWindow {
     public QAction zoomIn = new QAction(this);
     public QAction zoomOut = new QAction(this);
     public QAction resetZoom = new QAction(this);
-    public NoteCanvas centralWidget = new NoteCanvas(new MidiNoteSequence());
+    public NoteCanvas centralWidget = new NoteCanvas(new MidiNoteSequence()); //TODO: replace with PianoRollWidget when it's ready
     public QVBoxLayout verticalLayout = new QVBoxLayout(this);
     public QMenuBar menuBar = new QMenuBar(this);
     public QMenu file = new QMenu(menuBar);
@@ -87,10 +87,7 @@ public class MainWindow extends QMainWindow {
         view.addAction(resetZoom);
 
         // verticalLayout.addWidget(menuBar);
-        centralWidget.setParent(this);
-        verticalLayout.addWidget(menuBar);
-        verticalLayout.addWidget(centralWidget);
-        this.setLayout(verticalLayout);
+        setCentralWidget(centralWidget);
 
         retranslateUi(this);
 
