@@ -1,12 +1,16 @@
 package com.cwm.CrazyWaffleMidi.ui.widgets;
 
+import java.util.ArrayList;
+
 import com.cwm.CrazyWaffleMidi.midi.MidiNote;
 import com.cwm.CrazyWaffleMidi.midi.MidiNoteSequence;
 import com.cwm.CrazyWaffleMidi.ui.midi.PianoRollViewState;
 
 import io.qt.Nullable;
 import io.qt.core.QRectF;
+import io.qt.core.Qt;
 import io.qt.gui.QColor;
+import io.qt.gui.QMouseEvent;
 import io.qt.gui.QPaintEvent;
 import io.qt.gui.QPainter;
 import io.qt.gui.QPen;
@@ -14,6 +18,7 @@ import io.qt.widgets.QWidget;
 
 public class NoteCanvas extends QWidget {
     public final MidiNoteSequence notes;
+    private boolean snapEnabled = true;
     
     public NoteCanvas(MidiNoteSequence notes) {
         this.notes = notes;
@@ -26,6 +31,7 @@ public class NoteCanvas extends QWidget {
             drawBackground(painter);
             drawGrid(painter);
             drawNotes(painter);
+            drawPreviewNote(painter);
         } finally {
             painter.end();
         }
@@ -35,7 +41,7 @@ public class NoteCanvas extends QWidget {
         painter.fillRect(rect(), new QColor(30, 32, 38));
     }
     private void drawGrid(QPainter painter) {
-        final double rowHeight = PianoRollViewState.pixelsPerSemitone;
+        // final double rowHeight = PianoRollViewState.pixelsPerSemitone;
         for (int pitch = 0; pitch <= 127; pitch++) {
             double y = PianoRollViewState.getY(pitch);
             painter.setPen(new QPen(pitch % 12 == 0 ? new QColor(80, 84, 95) : new QColor(49, 52, 61)));
@@ -55,5 +61,75 @@ public class NoteCanvas extends QWidget {
             final double w = PianoRollViewState.getX(note.endTick());
             painter.fillRect(new QRectF(x + 1, y + 1, Math.max(1, w - x - 2), PianoRollViewState.pixelsPerSemitone - 2), new QColor(74, 170, 135));
         }
+    }
+    private void drawPreviewNote(QPainter painter) {
+        final double x = PianoRollViewState.getX(startTick);
+        final double y = PianoRollViewState.getY(pitch);
+        final double w = PianoRollViewState.getX(startTick + durationTicks);
+        painter.fillRect(new QRectF(x + 1, y + 1, Math.max(1, w - x - 2), PianoRollViewState.pixelsPerSemitone - 2), new QColor(14, 110, 75));
+    }
+
+    public static long snapTick(long tick, long interval) {
+        return Math.round((double) tick / interval) * interval;
+    }
+
+    public static enum EditMode {
+        IDLE,
+        CREATE,
+        MOVE,
+        RESIZE,
+        SELECT
+    }
+
+    private EditMode mode = EditMode.IDLE;
+    private double pressX;
+    private double pressY;
+    private long startTick;
+    private long durationTicks;
+    private long activeNoteId = -1;
+    private int pitch;
+    private long snapInterval = PianoRollViewState.ticksPerQuarter;
+
+    @Override
+    protected void mousePressEvent(@Nullable QMouseEvent event) {
+        if (event.button() != Qt.MouseButton.LeftButton) {
+            return;
+        }
+
+        final double x = event.position().x();
+        final double y = event.position().y();
+        MidiNoteSequence hits = findNotesAt(x, y);
+        if (hits.isEmpty()) { // Create note if there isn't one here
+            pitch = PianoRollViewState.getPitch(y);
+            if (pitch < 0 || pitch > 127) {
+                return;
+            }
+            startTick = snapEnabled? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x);
+            durationTicks = Math.max(startTick - (snapEnabled? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x)), 1);
+            mode = EditMode.CREATE;
+        }
+        //TODO: move/resize notes
+    }
+
+    @Override
+    protected void mouseMoveEvent(@Nullable QMouseEvent event) {
+        if (mode == EditMode.IDLE) {
+            return;
+        }
+    }
+
+    public MidiNoteSequence findNotesAt(final double x, final double y) {
+        MidiNoteSequence sequence = new MidiNoteSequence();
+        for (MidiNote note : notes) {
+            final double noteTop = PianoRollViewState.getY(note.pitch());
+            final double noteBottom = noteTop + PianoRollViewState.pixelsPerSemitone;
+            final double noteStart = PianoRollViewState.getX(note.startTick());
+            final double noteEnd = noteStart + PianoRollViewState.getX(note.durationTicks());
+             if (x < noteStart || x > noteEnd || y < noteTop || y > noteBottom) {
+                continue; // There's no note here.
+            }
+            sequence.add(note);
+        }
+        return sequence;
     }
 }

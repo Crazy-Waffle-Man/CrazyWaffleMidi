@@ -87,10 +87,6 @@ public class MainWindow extends QMainWindow {
         view.addAction(zoomOut);
         view.addAction(resetZoom);
 
-        NoteCanvas canvas = new NoteCanvas(new MidiNoteSequence());
-        canvas.setParent(centralWidget);
-        canvas.notes.addMidiNote(63, 0, 100, 12);
-
         retranslateUi(this);
 
         show();
