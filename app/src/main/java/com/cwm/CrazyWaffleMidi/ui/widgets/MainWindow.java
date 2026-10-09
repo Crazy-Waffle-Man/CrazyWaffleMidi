@@ -1,7 +1,6 @@
 package com.cwm.CrazyWaffleMidi.ui.widgets;
 
 import com.cwm.CrazyWaffleMidi.Properties;
-import com.cwm.CrazyWaffleMidi.midi.MidiNoteSequence;
 
 import io.qt.core.QCoreApplication;
 import io.qt.core.QRect;

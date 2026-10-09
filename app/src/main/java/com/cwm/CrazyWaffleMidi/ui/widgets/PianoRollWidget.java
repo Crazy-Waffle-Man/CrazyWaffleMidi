@@ -10,7 +10,10 @@ public class PianoRollWidget extends QWidget {
     private NoteCanvas noteCanvas;
 
     public PianoRollWidget() {
-        noteCanvas = new NoteCanvas(new MidiNoteSequence());
+       new PianoRollWidget(new MidiNoteSequence());
         //TODO: layout
+    }
+    public PianoRollWidget(MidiNoteSequence seq) {
+        noteCanvas = new NoteCanvas(seq);
     }
 }

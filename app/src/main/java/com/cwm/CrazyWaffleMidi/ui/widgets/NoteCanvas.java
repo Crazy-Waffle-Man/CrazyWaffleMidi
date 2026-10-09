@@ -1,7 +1,5 @@
 package com.cwm.CrazyWaffleMidi.ui.widgets;
 
-import java.util.ArrayList;
-
 import com.cwm.CrazyWaffleMidi.midi.MidiNote;
 import com.cwm.CrazyWaffleMidi.midi.MidiNoteSequence;
 import com.cwm.CrazyWaffleMidi.ui.midi.PianoRollViewState;
@@ -87,29 +85,27 @@ public class NoteCanvas extends QWidget {
     private EditMode mode = EditMode.IDLE;
     private long startTick;
     private long durationTicks;
-    private long activeNoteId = -1;
+    private MidiNoteSequence selectedNotes;
     private int pitch;
     private long snapInterval = PianoRollViewState.ticksPerQuarter;
 
     @Override
     protected void mousePressEvent(@Nullable QMouseEvent event) {
-        if (event.button() != Qt.MouseButton.LeftButton) {
-            return;
-        }
-
-        final double x = event.position().x();
-        final double y = event.position().y();
-        MidiNoteSequence hits = findNotesAt(x, y);
-        if (hits.isEmpty()) { // Create note if there isn't one here
-            pitch = PianoRollViewState.getPitch(y);
-            if (pitch < 0 || pitch > 127) {
-                return;
+        if (event.button() == Qt.MouseButton.LeftButton) {
+            final double x = event.position().x();
+            final double y = event.position().y();
+            MidiNoteSequence hits = findNotesAt(x, y);
+            if (hits.isEmpty()) { // Create note if there isn't one here
+                pitch = PianoRollViewState.getPitch(y);
+                if (pitch < 0 || pitch > 127) {
+                    return;
+                }
+                startTick = snapEnabled? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x);
+                durationTicks = 1;
+                mode = EditMode.CREATE;
             }
-            startTick = snapEnabled? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x);
-            durationTicks = 1;
-            mode = EditMode.CREATE;
-        }
         //TODO: move/resize notes
+        }
     }
 
     @Override
