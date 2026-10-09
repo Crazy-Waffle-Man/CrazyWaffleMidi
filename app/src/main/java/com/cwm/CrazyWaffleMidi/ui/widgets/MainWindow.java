@@ -1,6 +1,7 @@
 package com.cwm.CrazyWaffleMidi.ui.widgets;
 
 import com.cwm.CrazyWaffleMidi.Properties;
+import com.cwm.CrazyWaffleMidi.midi.MidiNoteSequence;
 
 import io.qt.core.QCoreApplication;
 import io.qt.core.QRect;
@@ -85,6 +86,10 @@ public class MainWindow extends QMainWindow {
         view.addAction(zoomIn);
         view.addAction(zoomOut);
         view.addAction(resetZoom);
+
+        NoteCanvas canvas = new NoteCanvas(new MidiNoteSequence());
+        canvas.setParent(centralWidget);
+        canvas.notes.addMidiNote(63, 0, 100, 12);
 
         retranslateUi(this);
 
