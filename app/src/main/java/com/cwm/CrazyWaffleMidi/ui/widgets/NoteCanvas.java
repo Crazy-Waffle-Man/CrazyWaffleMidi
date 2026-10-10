@@ -16,7 +16,7 @@ import io.qt.widgets.QWidget;
 
 public class NoteCanvas extends QWidget {
     public final MidiNoteSequence notes;
-    private boolean snapEnabled = false; //TODO: Adjust the numbers so that this doesn't break things when set to true
+    private boolean snapEnabled = true;
     
     public NoteCanvas(MidiNoteSequence notes) {
         this.notes = notes;
