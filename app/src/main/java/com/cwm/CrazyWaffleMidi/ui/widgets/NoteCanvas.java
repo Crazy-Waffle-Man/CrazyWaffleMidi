@@ -7,6 +7,7 @@ import com.cwm.CrazyWaffleMidi.ui.midi.PianoRollViewState;
 import io.qt.Nullable;
 import io.qt.core.QRectF;
 import io.qt.core.Qt;
+import io.qt.core.Qt.PenStyle;
 import io.qt.gui.QColor;
 import io.qt.gui.QMouseEvent;
 import io.qt.gui.QPaintEvent;
@@ -30,6 +31,7 @@ public class NoteCanvas extends QWidget {
             drawGrid(painter);
             drawNotes(painter);
             drawPreviewNote(painter);
+            drawSelectBox(painter);
         } finally {
             painter.end();
         }
@@ -78,9 +80,18 @@ public class NoteCanvas extends QWidget {
         final double w = PianoRollViewState.getX(startTick + durationTicks);
         painter.fillRect(new QRectF(x + 1, y + 1, Math.max(1, w - x - 2), PianoRollViewState.pixelsPerSemitone - 2), new QColor(14, 110, 75));
     }
+    private void drawSelectBox(QPainter painter) {
+        if (mode != EditMode.SELECT) {
+            return;
+        }
+        painter.fillRect(selectionBox, new QColor(146, 150, 150, 42));
+        painter.setPen(new QColor(146, 150, 150));
+        painter.setPen(PenStyle.DashLine);
+        painter.drawRect(selectionBox);
+    }
 
     public static long snapTick(long tick, long interval) {
-        return Math.round((double) tick / interval) * interval;
+        return Math.max(Math.round((double) tick / interval) * interval, interval);
     }
 
     public static enum EditMode {
@@ -88,21 +99,39 @@ public class NoteCanvas extends QWidget {
         CREATE,
         MOVE, // Drop notes back in where ID matches TODO: implement
         RESIZE, // TODO: implement
-        SELECT // TODO: fix
+        SELECT
     }
 
     private EditMode mode = EditMode.IDLE;
     private long startTick;
     private long durationTicks;
-    private double pressX;
-    private double pressY;
-    private MidiNoteSequence selectedNotes;
+    private QRectF selectionBox;
+    private MidiNoteSequence selectedNotes = new MidiNoteSequence();
     private int pitch;
     private long snapInterval = PianoRollViewState.ticksPerQuarter;
 
     @Override
     protected void mousePressEvent(@Nullable QMouseEvent event) {
         if (event.button() == Qt.MouseButton.LeftButton) {
+            for (MidiNote note : notes) {
+                QRectF noteBB = new QRectF(PianoRollViewState.getX(note.startTick()), PianoRollViewState.getY(note.pitch()), PianoRollViewState.getX(note.durationTicks()), PianoRollViewState.pixelsPerSemitone);
+                if (noteBB.contains(event.position())) {
+                    mode = EditMode.MOVE;
+                }
+                if (event.modifiers() == Qt.KeyboardModifier.ShiftModifier.asFlags()) {
+                    if (!selectedNotes.contains(note)) {
+                        selectedNotes.add(note);
+                    } else {
+                        selectedNotes.remove(note);
+                    }
+                    update();
+                } else {
+                    selectedNotes = new MidiNoteSequence();
+                    selectedNotes.add(note);
+                    update();
+                }
+            }
+
             final double x = event.position().x();
             final double y = event.position().y();
             MidiNoteSequence hits = findNotesAt(x, y); 
@@ -112,14 +141,13 @@ public class NoteCanvas extends QWidget {
                     return;
                 }
                 startTick = snapEnabled? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x);
-                durationTicks = 1;
+                durationTicks = snapEnabled? snapInterval : 1;
                 mode = EditMode.CREATE;
                 update();
                 return;
             }
         } else if (event.button() == Qt.MouseButton.RightButton) {
-            pressX = event.position().x();
-            pressY = event.position().y();
+            selectionBox = new QRectF(event.position().x(), event.position().y(), event.position().x(), event.position().y());
             mode = EditMode.SELECT;
             return;
         }
@@ -135,10 +163,13 @@ public class NoteCanvas extends QWidget {
             final double y = event.position().y();
             final long endTick = snapEnabled? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x);
             final long delta = endTick - startTick;
-            durationTicks = Math.max(delta, 1); // The note must have *some* length
+            durationTicks = Math.max(delta, snapEnabled? snapInterval : 1); // The note must have *some* length
             pitch = PianoRollViewState.getPitch(y);
             update();
             break;
+        case EditMode.SELECT:
+            selectionBox.setBottomRight(event.position());
+            update();
         default:
             break;
        }
@@ -146,9 +177,6 @@ public class NoteCanvas extends QWidget {
 
     @Override
     protected void mouseReleaseEvent(@Nullable QMouseEvent event) {
-        if (event.button() != Qt.MouseButton.LeftButton) {
-            return;
-        }
         switch (mode) {
             case EditMode.CREATE:
                 notes.addMidiNote(pitch, startTick, durationTicks, 64);
@@ -159,13 +187,13 @@ public class NoteCanvas extends QWidget {
             case EditMode.SELECT:
                 final double x = event.position().x();
                 final double y = event.position().y();
-                QRectF rect = new QRectF(pressX, pressY, x, y);
+                QRectF rect = new QRectF(selectionBox.left(), selectionBox.top(), x, y);
                 for (MidiNote note : notes) {
-                    if (!rect.contains(PianoRollViewState.getX(note.startTick()), PianoRollViewState.getY(note.pitch()))) {
-                        continue;
+                    if (rect.contains(PianoRollViewState.getX(note.startTick()), PianoRollViewState.getY(note.pitch()))) {
+                        selectedNotes.add(note);// If the rect contains the note, add the note.
                     }
-                    selectedNotes.add(note);
                 }
+                mode = EditMode.IDLE;
                 update();
                 break;
             default:
