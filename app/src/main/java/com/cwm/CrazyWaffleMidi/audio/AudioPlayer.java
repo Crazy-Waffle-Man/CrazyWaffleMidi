@@ -6,14 +6,14 @@ import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 
 public class AudioPlayer {
-    public static void main(String[] args) {
-        try {
-            createTone(440, 100, 5000);
-            createTone(220, 50, 2500);
-        } catch (LineUnavailableException e) {
-            e.printStackTrace();
-        }
-    }
+    // public static void main(String[] args) {
+    //     try {
+    //         createTone(440, 100, 5000);
+    //         createTone(220, 50, 2500);
+    //     } catch (LineUnavailableException e) {
+    //         e.printStackTrace();
+    //     }
+    // }
 
     /**
      * @param freq in Hz
