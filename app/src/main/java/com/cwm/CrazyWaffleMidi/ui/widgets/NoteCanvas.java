@@ -107,6 +107,7 @@ public class NoteCanvas extends QWidget {
     private long startTick;
     private long durationTicks;
     private QRectF selectionBox;
+    private MidiNote masterNote;
     private MidiNoteSequence selectedNotes = new MidiNoteSequence();
     private int pitch;
     private long snapInterval = PianoRollViewState.ticksPerQuarter;
@@ -148,17 +149,30 @@ public class NoteCanvas extends QWidget {
             selectionBox = new QRectF(event.position().x(), event.position().y(), event.position().x(), event.position().y());
             mode = EditMode.SELECT;
             return;
+        } else if (event.button() == Qt.MouseButton.MiddleButton) { // Restricts users to need a mouse w/ middle button, maybe allow for custom keymapping later?
+            if (selectedNotes.isEmpty()) {
+                selectedNotes = findNotesAt(event.position().x(), event.position().y());
+            }
+            try {
+                masterNote = findNotesAt(event.position().x(), event.position().y()).getLast();
+            } catch (Exception e) {
+                selectedNotes = new MidiNoteSequence();
+                return;
+            }
+            mode = EditMode.MOVE;
+            update();
+            return;
         }
     }
 
     @Override
     protected void mouseMoveEvent(@Nullable QMouseEvent event) {
+        final double x = event.position().x();
+        final double y = event.position().y();
        switch (mode) {
         case EditMode.IDLE:
             return;
         case EditMode.CREATE:
-            final double x = event.position().x();
-            final double y = event.position().y();
             final long endTick = snapEnabled? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x);
             final long delta = endTick - startTick;
             durationTicks = Math.max(delta, snapEnabled? snapInterval : 1); // The note must have *some* length
@@ -168,6 +182,18 @@ public class NoteCanvas extends QWidget {
         case EditMode.SELECT:
             selectionBox.setBottomRight(event.position());
             update();
+            break;
+        case EditMode.MOVE:
+            int newPitch = PianoRollViewState.getPitch(y);
+            if (masterNote.pitch() == newPitch) {
+                return;
+            }
+            int dPitch = newPitch - masterNote.pitch();
+            for (MidiNote note : selectedNotes) {
+                note.setPitch(note.pitch() + dPitch); // We don't need to specifically adjust masterNote.pitch() because masterNote is in selectedNotes
+            }
+            update();
+            break;
         default:
             break;
        }
