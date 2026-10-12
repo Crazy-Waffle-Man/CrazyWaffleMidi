@@ -62,7 +62,7 @@ public class NoteCanvas extends QWidget {
             if (selectedNotes != null) {
                 painter.fillRect(
                     new QRectF(x + 1, y + 1, Math.max(1, w - x - 2), PianoRollViewState.pixelsPerSemitone - 2), 
-                    selectedNotes.contains(note)
+                    selectedNotes.contains(note) || note == masterNote
                         ? new QColor(198, 135, 189) 
                         : new QColor(74, 170, 135)
                 );
@@ -97,13 +97,14 @@ public class NoteCanvas extends QWidget {
     public static enum EditMode {
         IDLE,
         CREATE,
-        MOVE, // Drop notes back in where ID matches TODO: implement
-        RESIZE, // TODO: implement
+        MOVE,
+        RESIZE,
         SELECT
     }
 
     private EditMode mode = EditMode.IDLE;
     private boolean shouldShowPreviewNote = false;
+    private boolean wasNoteStartHandleGrabbed = false;
     private long startTick;
     private long durationTicks;
     private QRectF selectionBox;
@@ -117,9 +118,39 @@ public class NoteCanvas extends QWidget {
         if (event.button() == Qt.MouseButton.LeftButton) {
             final double x = event.position().x();
             final double y = event.position().y();
+
+            QRectF checkRange = new QRectF(0, 0, 10, 10);
+            checkRange.moveCenter(event.position());
+            for (MidiNote note : notes) {
+                if ( // Oh yeah, it's all comin' together
+                    checkRange.intersects(
+                        new QRectF(
+                            PianoRollViewState.getX(note.startTick()) - 5, 
+                            PianoRollViewState.getY(note.pitch()), 
+                            10, 
+                            PianoRollViewState.pixelsPerSemitone
+                        )
+                    )
+                ) {
+                    wasNoteStartHandleGrabbed = true;
+                    masterNote = note;
+                    mode = EditMode.RESIZE;
+                    return;
+                }
+                if (
+                checkRange.intersects(new QRectF(PianoRollViewState.getX(note.endTick()) - 5, PianoRollViewState.getY(note.pitch()), 10, PianoRollViewState.pixelsPerSemitone))) {
+                    wasNoteStartHandleGrabbed = false;
+                    masterNote = note;
+                    mode = EditMode.RESIZE;
+                    return;
+                }
+            }
+
             MidiNoteSequence hits = findNotesAt(x, y); // Should be of length 1 at maximum, but it'll probably be possible to 
-            if (hits.isEmpty()) { // Create note if there isn't one here
-            shouldShowPreviewNote = true;
+            if (hits.isEmpty()) { 
+                selectedNotes = new MidiNoteSequence();
+                // Create note if there isn't one here
+                shouldShowPreviewNote = true;
                 pitch = PianoRollViewState.getPitch(y);
                 if (pitch < 0 || pitch > 127) {
                     return;
@@ -153,11 +184,13 @@ public class NoteCanvas extends QWidget {
             if (selectedNotes.isEmpty()) {
                 selectedNotes = findNotesAt(event.position().x(), event.position().y());
             }
-            try {
-                masterNote = findNotesAt(event.position().x(), event.position().y()).getLast();
-            } catch (Exception e) {
+            MidiNoteSequence hits = findNotesAt(event.position().x(), event.position().y());
+            if (hits.isEmpty()) {
                 selectedNotes = new MidiNoteSequence();
+                update();
                 return;
+            } else {
+                masterNote = hits.getLast();
             }
             mode = EditMode.MOVE;
             update();
@@ -183,7 +216,7 @@ public class NoteCanvas extends QWidget {
             selectionBox.setBottomRight(event.position());
             update();
             break;
-        case EditMode.MOVE:
+        case EditMode.MOVE: // Horizontal movement happens by resizing with the start handle.
             int newPitch = PianoRollViewState.getPitch(y);
             if (masterNote.pitch() == newPitch) {
                 return;
@@ -191,6 +224,17 @@ public class NoteCanvas extends QWidget {
             int dPitch = newPitch - masterNote.pitch();
             for (MidiNote note : selectedNotes) {
                 note.setPitch(note.pitch() + dPitch); // We don't need to specifically adjust masterNote.pitch() because masterNote is in selectedNotes
+            }
+            update();
+            break;
+        case EditMode.RESIZE:
+            if (wasNoteStartHandleGrabbed) {
+                // Well oops turns out this was the horizontal movement...
+                // Y'know what, if it ain't broke don't fix it.
+                // It's not a bug, it's a feature!
+                masterNote.setStartTick(snapEnabled ? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x));
+            } else {
+                masterNote.setDurationTicks(snapEnabled ? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x) - masterNote.startTick());
             }
             update();
             break;
@@ -217,6 +261,16 @@ public class NoteCanvas extends QWidget {
                         selectedNotes.add(note);// If the rect contains the note, add the note.
                     }
                 }
+                mode = EditMode.IDLE;
+                update();
+                break;
+            case EditMode.MOVE:
+                masterNote = new MidiNote();
+                mode = EditMode.IDLE;
+                update();
+                break;
+            case EditMode.RESIZE:
+                masterNote = new MidiNote();
                 mode = EditMode.IDLE;
                 update();
                 break;
