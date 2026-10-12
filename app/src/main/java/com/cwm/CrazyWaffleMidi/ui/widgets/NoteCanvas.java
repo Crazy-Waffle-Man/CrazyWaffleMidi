@@ -72,7 +72,7 @@ public class NoteCanvas extends QWidget {
         }
     }
     private void drawPreviewNote(QPainter painter) {
-        if (mode == EditMode.IDLE) {
+        if (mode == EditMode.IDLE || !shouldShowPreviewNote) {
             return;
         }
         final double x = PianoRollViewState.getX(startTick);
@@ -103,6 +103,7 @@ public class NoteCanvas extends QWidget {
     }
 
     private EditMode mode = EditMode.IDLE;
+    private boolean shouldShowPreviewNote = false;
     private long startTick;
     private long durationTicks;
     private QRectF selectionBox;
@@ -113,29 +114,11 @@ public class NoteCanvas extends QWidget {
     @Override
     protected void mousePressEvent(@Nullable QMouseEvent event) {
         if (event.button() == Qt.MouseButton.LeftButton) {
-            for (MidiNote note : notes) {
-                QRectF noteBB = new QRectF(PianoRollViewState.getX(note.startTick()), PianoRollViewState.getY(note.pitch()), PianoRollViewState.getX(note.durationTicks()), PianoRollViewState.pixelsPerSemitone);
-                if (noteBB.contains(event.position())) {
-                    mode = EditMode.MOVE;
-                }
-                if (event.modifiers() == Qt.KeyboardModifier.ShiftModifier.asFlags()) {
-                    if (!selectedNotes.contains(note)) {
-                        selectedNotes.add(note);
-                    } else {
-                        selectedNotes.remove(note);
-                    }
-                    update();
-                } else {
-                    selectedNotes = new MidiNoteSequence();
-                    selectedNotes.add(note);
-                    update();
-                }
-            }
-
             final double x = event.position().x();
             final double y = event.position().y();
-            MidiNoteSequence hits = findNotesAt(x, y); 
+            MidiNoteSequence hits = findNotesAt(x, y); // Should be of length 1 at maximum, but it'll probably be possible to 
             if (hits.isEmpty()) { // Create note if there isn't one here
+            shouldShowPreviewNote = true;
                 pitch = PianoRollViewState.getPitch(y);
                 if (pitch < 0 || pitch > 127) {
                     return;
@@ -143,6 +126,21 @@ public class NoteCanvas extends QWidget {
                 startTick = snapEnabled? snapTick(PianoRollViewState.getTick(x), snapInterval) : PianoRollViewState.getTick(x);
                 durationTicks = snapEnabled? snapInterval : 1;
                 mode = EditMode.CREATE;
+                update();
+                return;
+            } else {
+                for (MidiNote note : hits) { // 
+                    if (event.modifiers() == Qt.KeyboardModifier.ShiftModifier.asFlags()) {
+                        if (!selectedNotes.contains(note)) {
+                            selectedNotes.add(note);
+                        } else {
+                            selectedNotes.remove(note);
+                        }
+                    } else {
+                        selectedNotes = new MidiNoteSequence();
+                        selectedNotes.add(note);
+                    }
+                }
                 update();
                 return;
             }
@@ -181,13 +179,13 @@ public class NoteCanvas extends QWidget {
             case EditMode.CREATE:
                 notes.addMidiNote(pitch, startTick, durationTicks, 64);
                 mode = EditMode.IDLE;
+                shouldShowPreviewNote = false;
                 update();
                 //If only I could set the state machine note information to null... Alas...
                 break;
             case EditMode.SELECT:
-                final double x = event.position().x();
-                final double y = event.position().y();
-                QRectF rect = new QRectF(selectionBox.left(), selectionBox.top(), x, y);
+                selectedNotes = new MidiNoteSequence();
+                QRectF rect = selectionBox;
                 for (MidiNote note : notes) {
                     if (rect.contains(PianoRollViewState.getX(note.startTick()), PianoRollViewState.getY(note.pitch()))) {
                         selectedNotes.add(note);// If the rect contains the note, add the note.
