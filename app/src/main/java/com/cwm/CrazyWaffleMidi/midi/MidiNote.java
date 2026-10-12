@@ -15,9 +15,13 @@ public class MidiNote {
         this.durationTicks = durationTicks;
         this.velocity = Math.clamp(velocity, 1, 127);
     }
+    public MidiNote() {
+        // Null note
+        id = -1;
+    }
 
     public long id(){
-        return id;
+        return id != -1 ? id : null;
     }
     public int pitch(){
         return pitch;
