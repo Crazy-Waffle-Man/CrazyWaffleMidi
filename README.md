@@ -5,6 +5,5 @@ This is a really scuffed midi sequencer. It's currently in the very early stages
 To run it, you need to have a JDK of some variety.
 
 1. Download this repository (either via the zip download/extract or with `git clone https://github.com/Crazy-Waffle-Man/CrazyWaffleMidi.git`) and navigate to the folder on your device.
-2. Right click on the background and press "Open in terminal"
-3. Run the build script by typing `./gradlew build`
-4. Double-click on `./app/build/libs/app.jar` to run, or run a script in `./app/build/scripts/app/`
+2. Right click on the background of your file explorer and press "Open in terminal"
+3. Run the app by typing `./run`
