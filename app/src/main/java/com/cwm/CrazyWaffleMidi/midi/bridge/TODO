@@ -1,0 +1,2 @@
+- Translate com.cwm.CrazyWaffleMidi.midi.MidiNote to javax.sound.midi.ShortMessage
+- Translate com.cwm.CrazyWaffleMidi.midi.MidiNoteSequence to javax.sound.midi.Track
