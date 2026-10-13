@@ -10,8 +10,8 @@ public class AudioPlayer {
     //     try {
     //         createTone(440, 100, 500);
     //         createTone(220, 50, 250);
-    //         createTone(new Waveform(Waveform.SINE, 880, 50, 500);
-    //         createTone(new Waveform(Waveform.SAWTOOTH, 440, 50, 250);
+    //         createTone(new Waveform(Waveform.SINE), 880, 50, 500);
+    //         createTone(new Waveform(Waveform.SAWTOOTH), 440, 50, 250);
     //         createTone(new Waveform(Waveform.SQUARE), 220, 50, 500);
     //         createTone(new Waveform(Waveform.TRIANGLE), 880, 50, 750);
     //     } catch (LineUnavailableException e) {
