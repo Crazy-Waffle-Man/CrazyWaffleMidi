@@ -38,7 +38,22 @@ public class NoteCanvas extends QWidget {
     }
 
     private void drawBackground(QPainter painter) {
-        painter.fillRect(rect(), new QColor(30, 32, 38));
+        int[] whiteKeys = new int[]{ 0,2,4,5,7,9,11 };
+        for (int pitch = 0; pitch <= 127; pitch++) {
+            double y = PianoRollViewState.getY(pitch);
+            boolean isWhite = false;
+            for (int i : whiteKeys) {
+                if ((pitch % 12) == i) {
+                    isWhite = true;
+                    break;
+                }
+            }
+            painter.fillRect(new QRectF(0, y, width(), PianoRollViewState.pixelsPerSemitone), 
+            isWhite
+            ? new QColor(40,40,40)
+            : new QColor(30,30,30)
+        );
+        }
     }
     private void drawGrid(QPainter painter) {
         // final double rowHeight = PianoRollViewState.pixelsPerSemitone;
