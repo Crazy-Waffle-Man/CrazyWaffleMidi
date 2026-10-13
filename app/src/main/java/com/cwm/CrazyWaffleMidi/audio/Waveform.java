@@ -3,6 +3,10 @@ package com.cwm.CrazyWaffleMidi.audio;
 import java.util.function.Function;
 
 public class Waveform {
+    public static final Function<Double, Float> SINE = t -> (float)  Math.sin(t*2*Math.PI);
+    public static final Function<Double, Float> SAWTOOTH = t -> (float) (2*t+1);
+    public static final Function<Double, Float> SQUARE = t -> (float) (2*Math.round(t) - 1);
+    public static final Function<Double, Float> TRIANGLE = t -> (float) (4*Math.abs(t + 0.25 - Math.floor(t + 0.75)));
     private final float[] samples;
     private final int sampleRate;
 

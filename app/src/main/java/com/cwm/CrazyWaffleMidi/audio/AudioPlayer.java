@@ -8,11 +8,12 @@ import javax.sound.sampled.SourceDataLine;
 public class AudioPlayer {
     // public static void main(String[] args) {
     //     try {
-    //         createTone(440, 100, 500);                                                   // Sine
-    //         createTone(220, 50, 250);                                                    // Sine
-    //         createTone(new Waveform(t -> (float)  Math.sin(t*2*Math.PI)), 880, 50, 500); // Sine
-    //         createTone(new Waveform(t -> (float) (2*t-1)), 440, 50, 250);                // Sawtooth
-    //         createTone(new Waveform(t -> (float) (2*Math.round(t) - 1)), 220, 50, 500);  // Square
+    //         createTone(440, 100, 500);
+    //         createTone(220, 50, 250);
+    //         createTone(new Waveform(Waveform.SINE, 880, 50, 500);
+    //         createTone(new Waveform(Waveform.SAWTOOTH, 440, 50, 250);
+    //         createTone(new Waveform(Waveform.SQUARE), 220, 50, 500);
+    //         createTone(new Waveform(Waveform.TRIANGLE), 880, 50, 750);
     //     } catch (LineUnavailableException e) {
     //         e.printStackTrace();
     //     }
