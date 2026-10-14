@@ -1,7 +1,7 @@
 package com.cwm.CrazyWaffleMidi.ui.midi;
 
 public final class PianoRollViewState {
-    public static int ticksPerQuarter = 960;
+    public static int ticksPerQuarter = 480;
     public static int beatsPerBar = 4;
     public static int beatUnit = 4;
 

@@ -5,19 +5,30 @@ import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 
+import com.cwm.CrazyWaffleMidi.midi.MidiNote;
+import com.cwm.CrazyWaffleMidi.midi.MidiNoteSequence;
+import com.cwm.CrazyWaffleMidi.ui.midi.PianoRollViewState;
+
 public class AudioPlayer {
-    // public static void main(String[] args) {
-    //     try {
-    //         createTone(440, 100, 500);
-    //         createTone(220, 50, 250);
-    //         createTone(new Waveform(Waveform.SINE, 880, 50, 500);
-    //         createTone(new Waveform(Waveform.SAWTOOTH, 440, 50, 250);
-    //         createTone(new Waveform(Waveform.SQUARE), 220, 50, 500);
-    //         createTone(new Waveform(Waveform.TRIANGLE), 880, 50, 750);
-    //     } catch (LineUnavailableException e) {
-    //         e.printStackTrace();
-    //     }
-    // }
+    public static void main(String[] args) {
+        try {
+            createTone(440, 100, 500);
+            createTone(220, 50, 250);
+            createTone(Waveform.SINE, 880, 50, 500);
+            createTone(Waveform.SAWTOOTH, 440, 50, 250);
+            createTone(Waveform.SQUARE, 220, 50, 500);
+            createTone(Waveform.TRIANGLE, 880, 50, 750);
+            MidiNoteSequence seq = new MidiNoteSequence();
+            for (int i = 64; i <= 64 + 13; i++) {
+                seq.addMidiNote(i, PianoRollViewState.ticksPerQuarter * (i - 64), PianoRollViewState.ticksPerQuarter, 50);
+            }
+            for (MidiNote note : seq) {
+                note.play(Waveform.SQUARE);
+            }
+        } catch (LineUnavailableException e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * @param freq in Hz
