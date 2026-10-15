@@ -20,6 +20,10 @@ public class MidiNote {
         id = -1;
     }
 
+    public int getFrequency() {
+        return (int) Math.round(Math.pow(2, ((double)(pitch - 69)) / 12.0d) * 440);
+    }
+
     public long id(){
         return id != -1 ? id : null;
     }
