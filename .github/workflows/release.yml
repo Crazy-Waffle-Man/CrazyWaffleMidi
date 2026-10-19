@@ -80,7 +80,27 @@ jobs:
             --default-answer `
             --confirm-command `
             install qt.qt6.6120.win64_msvc2022_64
+          $version = $env:QTJAMBI_VERSION
+          $out = "dist/CrazyWaffleMidi"
 
+          $classpath = @(
+            "$out\lib\app-all.jar"
+            "$out\lib\qtjambi.jar"
+            "$out\lib\qtjambi-native.jar"
+            (Get-ChildItem "$out\lib\qt-lib-*.jar" |
+              ForEach-Object { $_.FullName })
+            ) -join ";"
+
+          java "-Djava.library.path=$env:QT_DIR\bin" `
+            -cp "tools/qtjambi.jar;tools/deployer.jar" `
+            io.qt.qtjambi.deployer.Main app `
+            --application=CrazyWaffleMidi `
+            --executable=utilities/QtJambiLauncher.exe `
+            "--class-path=$classpath" `
+            --library-path=. `
+            --jvm-path=../jre `
+            --main-class=com.cwm.CrazyWaffleMidi.Main `
+            --dir="$out\bin"
           if ($LASTEXITCODE -ne 0) {
             exit $LASTEXITCODE
           }
@@ -93,8 +113,8 @@ jobs:
           test -n "$QT_INSTALLER_JWT_TOKEN"
 
           curl -fL \
-            https://download.qt.io/official_releases/online_installers/qt-online-installer-macOS-x64-online.dmg \
-            -o "$RUNNER_TEMP/qt-installer.dmg"
+          https://download.qt.io/official_releases/online_installers/qt-online-installer-macOS-universal.dmg \
+          -o "$RUNNER_TEMP/qt-installer.dmg"
 
           mkdir -p "$RUNNER_TEMP/QtInstaller"
           hdiutil attach "$RUNNER_TEMP/qt-installer.dmg" \
@@ -120,6 +140,8 @@ jobs:
         if: runner.os == 'Linux'
         shell: bash
         run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-0
           set -euo pipefail
           test -n "$QT_INSTALLER_JWT_TOKEN"
 
