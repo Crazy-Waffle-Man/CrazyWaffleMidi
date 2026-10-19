@@ -8,6 +8,7 @@
 plugins {
     // Apply the application plugin to add support for building a CLI application in Java.
     application
+    id("com.gradleup.shadow") version "9.5.0"
 }
 
 repositories {
@@ -28,18 +29,18 @@ dependencies {
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
-java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(21)
-    }
-}
+// java {
+//     toolchain {
+//         languageVersion = JavaLanguageVersion.of(21)
+//     }
+// }
 
 application {
     // Define the main class for the application.
     mainClass = "com.cwm.CrazyWaffleMidi.Main"
 }
 
-tasks.named<Test>("test") {
-    // Use JUnit Platform for unit tests.
-    useJUnitPlatform()
-}
+// tasks.named<Test>("test") {
+//     // Use JUnit Platform for unit tests.
+//     useJUnitPlatform()
+// }
