@@ -48,6 +48,7 @@ jobs:
         run: |
           chmod +x ./gradlew
           ./gradlew :app:build
+          ls -lah app/build/libs/
           test -f app/build/libs/app-all.jar
 
       - name: Download QtJambi deployment tools
