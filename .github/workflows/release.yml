@@ -47,7 +47,7 @@ jobs:
         shell: bash
         run: |
           chmod +x ./gradlew
-          ./gradlew :app:build
+          ./gradlew build
           ls -lah app/build/libs/
           test -f app/build/libs/app-all.jar
 
