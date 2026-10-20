@@ -22,20 +22,22 @@ jobs:
         include:
           - os: windows-2022
             platform: windows-x64
-            qt_arch: msvc2022_64
+            qt_platform: windows
+            qt_arch: win64_msvc2022_64
           - os: macos-14
             platform: macos
+            qt_platform: mac
             qt_arch: clang_64
           - os: ubuntu-22.04
             platform: linux-x64
+            qt_platform: linux
             qt_arch: gcc_64
 
     env:
       APP_NAME: CrazyWaffleMidi
-      QTJAMBI_VERSION: "6.12.0"
+      QT_VERSION: "6.12.0"
       QT_ROOT: ${{ github.workspace }}/Qt
-      QT_DIR: ${{ github.workspace }}/Qt/6.12.0/${{ matrix.qt_arch }}
-      QT_INSTALLER_JWT_TOKEN: ${{ secrets.QT_INSTALLER_JWT_TOKEN }}
+      QTJAMBI_VERSION: "6.12.0"
 
     steps:
       - name: Checkout
@@ -47,6 +49,47 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: gradle
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+
+      - name: Install Qt with aqtinstall
+        shell: bash
+        run: |
+          set -euxo pipefail
+          python -m pip install --upgrade pip aqtinstall
+          python -m aqt install-qt "${{ matrix.qt_platform }}" desktop "${QT_VERSION}" "${{ matrix.qt_arch }}" --outputdir "$QT_ROOT"
+
+          qt_dir="$(find "$QT_ROOT" -maxdepth 3 -type d \( -name "${{ matrix.qt_arch }}" -o -name "gcc_64" -o -name "clang_64" -o -name "msvc*" \) | head -n 1)"
+          if [ -z "$qt_dir" ]; then
+            echo "Qt installation not found under $QT_ROOT" >&2
+            find "$QT_ROOT" -maxdepth 4 -print | head -n 200 >&2
+            exit 1
+          fi
+
+          echo "QT_DIR=$qt_dir" >> "$GITHUB_ENV"
+          echo "Installed Qt at $qt_dir"
+
+      - name: Install Linux Qt runtime deps
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxkbcommon-x11-0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-sync1 \
+            libxcb-xfixes0 \
+            libxcb-xinerama0 \
+            libxcb-xkb1
 
       - name: Build fat JAR
         shell: bash
@@ -61,7 +104,6 @@ jobs:
         run: |
           set -euxo pipefail
           mkdir -p dist
-
           jlink \
             --add-modules java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.sql,java.xml,jdk.unsupported \
             --strip-debug \
@@ -69,89 +111,7 @@ jobs:
             --no-man-pages \
             --compress=2 \
             --output dist/jre
-
           test -x dist/jre/bin/java
-
-      - name: Install Qt (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          if (-not $env:QT_INSTALLER_JWT_TOKEN) {
-            throw "Set the QT_INSTALLER_JWT_TOKEN repository secret."
-          }
-
-          $installer = "$env:RUNNER_TEMP\qt-installer.exe"
-          Invoke-WebRequest \
-            "https://download.qt.io/official_releases/online_installers/qt-online-installer-windows-x64-online.exe" \
-            -OutFile $installer
-
-          & $installer \
-            --root "$env:QT_ROOT" \
-            --accept-licenses \
-            --accept-obligations \
-            --default-answer \
-            --confirm-command \
-            install qt.qt6.6120.win64_msvc2022_64
-
-      - name: Install Qt (macOS)
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -euo pipefail
-          test -n "$QT_INSTALLER_JWT_TOKEN"
-
-          curl -fL \
-            https://download.qt.io/official_releases/online_installers/qt-online-installer-macOS-universal.dmg \
-            -o "$RUNNER_TEMP/qt-installer.dmg"
-
-          mkdir -p "$RUNNER_TEMP/QtInstaller"
-          hdiutil attach "$RUNNER_TEMP/qt-installer.dmg" \
-            -nobrowse -quiet \
-            -mountpoint "$RUNNER_TEMP/QtInstaller"
-
-          installer="$(find "$RUNNER_TEMP/QtInstaller" \
-            -type f -path '*/Contents/MacOS/*' -perm -111 \
-            -print -quit)"
-          test -n "$installer"
-
-          "$installer" \
-            --root "$QT_ROOT" \
-            --accept-licenses \
-            --accept-obligations \
-            --default-answer \
-            --confirm-command \
-            install qt.qt6.6120.clang_64
-
-          hdiutil detach "$RUNNER_TEMP/QtInstaller" -quiet
-
-      - name: Install Qt (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -euo pipefail
-          sudo apt-get update
-          sudo apt-get install -y libxkbcommon-x11-0
-          test -n "$QT_INSTALLER_JWT_TOKEN"
-
-          curl -fL \
-            https://download.qt.io/official_releases/online_installers/qt-online-installer-linux-x64-online.run \
-            -o "$RUNNER_TEMP/qt-installer.run"
-          chmod +x "$RUNNER_TEMP/qt-installer.run"
-
-          "$RUNNER_TEMP/qt-installer.run" \
-            --root "$QT_ROOT" \
-            --accept-licenses \
-            --accept-obligations \
-            --default-answer \
-            --confirm-command \
-            install qt.qt6.6120.linux_gcc_64
-
-      - name: Verify Qt installation
-        shell: bash
-        run: |
-          set -euxo pipefail
-          test -d "$QT_DIR"
-          ls "$QT_DIR"
 
       - name: Download QtJambi deployment tools
         shell: bash
@@ -163,14 +123,10 @@ jobs:
           v="$QTJAMBI_VERSION"
           p="${{ matrix.platform }}"
 
-          curl -fLsS "$base/qtjambi/$v/qtjambi-$v.jar" \
-            -o tools/qtjambi.jar
-          curl -fLsS "$base/qtjambi-native-$p/$v/qtjambi-native-$p-$v.jar" \
-            -o tools/qtjambi-native.jar
-          curl -fLsS "$base/qtjambi-deployer/$v/qtjambi-deployer-$v.jar" \
-            -o tools/deployer.jar
-          curl -fLsS "$base/qtjambi-deployer-native-$p/$v/qtjambi-deployer-native-$p-$v.jar" \
-            -o tools/deployer-native.jar
+          curl -fLsS "$base/qtjambi/$v/qtjambi-$v.jar" -o tools/qtjambi.jar
+          curl -fLsS "$base/qtjambi-native-$p/$v/qtjambi-native-$p-$v.jar" -o tools/qtjambi-native.jar
+          curl -fLsS "$base/qtjambi-deployer/$v/qtjambi-deployer-$v.jar" -o tools/deployer.jar
+          curl -fLsS "$base/qtjambi-deployer-native-$p/$v/qtjambi-deployer-native-$p-$v.jar" -o tools/deployer-native.jar
 
       - name: Bundle Qt libraries and plugins
         shell: bash
@@ -204,13 +160,12 @@ jobs:
           set -euo pipefail
 
           out="dist/CrazyWaffleMidi"
-          mkdir -p "$out/bin" "$out/lib" "$out/jre"
+          mkdir -p "$out/bin" "$out/lib"
 
           cp app/build/libs/app-all.jar "$out/lib/"
           cp tools/qtjambi.jar "$out/lib/"
           cp tools/qtjambi-native.jar "$out/lib/"
           cp qt-bundle/*.jar "$out/lib/"
-
           cp -R dist/jre/. "$out/jre/"
 
           cp="tools/qtjambi.jar;tools/qtjambi-native.jar;tools/deployer.jar;tools/deployer-native.jar"
@@ -233,6 +188,16 @@ jobs:
         run: |
           set -euo pipefail
 
+          app="dist/CrazyWaffleMidi.app"
+          contents="$app/Contents"
+          mkdir -p "$contents/lib" "$contents/jre"
+
+          cp app/build/libs/app-all.jar "$contents/lib/"
+          cp tools/qtjambi.jar "$contents/lib/"
+          cp tools/qtjambi-native.jar "$contents/lib/"
+          cp qt-bundle/*.jar "$contents/lib/"
+          cp -R dist/jre/. "$contents/jre/"
+
           cp="tools/qtjambi.jar:tools/qtjambi-native.jar:tools/deployer.jar:tools/deployer-native.jar"
 
           java "-Djava.library.path=$QT_DIR/lib" \
@@ -245,16 +210,6 @@ jobs:
             --main-class=com.cwm.CrazyWaffleMidi.Main \
             --dir=dist \
             -- -XstartOnFirstThread
-
-          app="dist/CrazyWaffleMidi.app"
-          contents="$app/Contents"
-          mkdir -p "$contents/lib" "$contents/jre"
-
-          cp app/build/libs/app-all.jar "$contents/lib/"
-          cp tools/qtjambi.jar "$contents/lib/"
-          cp tools/qtjambi-native.jar "$contents/lib/"
-          cp qt-bundle/*.jar "$contents/lib/"
-          cp -R dist/jre/. "$contents/jre/"
 
           hdiutil create \
             -volname CrazyWaffleMidi \
@@ -275,7 +230,6 @@ jobs:
           cp tools/qtjambi.jar "$out/lib/"
           cp tools/qtjambi-native.jar "$out/lib/"
           cp qt-bundle/*.jar "$out/lib/"
-
           cp -R dist/jre/. "$out/jre/"
 
           cp="tools/qtjambi.jar:tools/qtjambi-native.jar:tools/deployer.jar:tools/deployer-native.jar"
