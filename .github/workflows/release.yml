@@ -1,17 +1,13 @@
-# I had a LLM generate this one because I'm not gonna learn all the documentation behind this 
-# when my .jar is perfectly fine if you have Java installed.
-# This file is not my job.
-
 name: Build and Release
 
 on:
   workflow_dispatch:
     inputs:
       version:
-        description: "Release version, e.g. v1.0.0"
+        description: "Release version (e.g. v1.0.0)"
         required: true
-        type: string
         default: "v1.0.0"
+        type: string
 
 permissions:
   contents: write
@@ -19,32 +15,27 @@ permissions:
 jobs:
   build:
     name: Build ${{ matrix.platform }}
-
+    runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
         include:
           - os: windows-2022
             platform: windows-x64
-            qt_arch: msvc2022_64
-            artifact: windows-release
+            qt_arch: win64_msvc2019_64
           - os: macos-14
             platform: macos
-            qt_arch: macos
-            artifact: macos-release
+            qt_arch: clang_64
           - os: ubuntu-22.04
             platform: linux-x64
             qt_arch: gcc_64
-            artifact: linux-release
-
-    runs-on: ${{ matrix.os }}
 
     env:
-      QTJAMBI_VERSION: "6.12.0"
-      QTJAMBI_PLATFORM: ${{ matrix.platform }}
+      APP_NAME: CrazyWaffleMidi
+      QT_VERSION: "6.12.0"
       QT_ROOT: ${{ github.workspace }}/Qt
       QT_DIR: ${{ github.workspace }}/Qt/6.12.0/${{ matrix.qt_arch }}
-      QT_INSTALLER_JWT_TOKEN: ${{ secrets.QT_INSTALLER_JWT_TOKEN }}
+      QTJAMBI_VERSION: "6.12.0"
 
     steps:
       - name: Checkout
@@ -56,6 +47,39 @@ jobs:
           distribution: temurin
           java-version: "21"
           cache: gradle
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.12.0"
+          arch: ${{ matrix.qt_arch }}
+          cache: true
+
+      - name: Verify Qt installation
+        shell: bash
+        run: |
+          set -euxo pipefail
+          test -d "$QT_DIR"
+          ls "$QT_DIR"
+
+      - name: Install Linux Qt runtime deps
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y \
+            libxkbcommon-x11-0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-shape0 \
+            libxcb-sync1 \
+            libxcb-xfixes0 \
+            libxcb-xinerama0 \
+            libxcb-xkb1
 
       - name: Build fat JAR
         shell: bash
@@ -65,198 +89,109 @@ jobs:
           ./gradlew :app:clean :app:shadowJar
           test -s app/build/libs/app-all.jar
 
-      # Qt's official installer replaces aqtinstall here because
-      # aqtinstall currently fails to parse the Qt 6.12.0 metadata.
-      # Configure the QT_INSTALLER_JWT_TOKEN repository secret first.
-
-      - name: Install Qt SDK (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          if ([string]::IsNullOrWhiteSpace($env:QT_INSTALLER_JWT_TOKEN)) {
-            throw "Configure the QT_INSTALLER_JWT_TOKEN repository Actions secret."
-          }
-
-          $installer = "$env:RUNNER_TEMP\qt-installer.exe"
-
-          Invoke-WebRequest `
-            -Uri "https://download.qt.io/official_releases/online_installers/qt-online-installer-windows-x64-online.exe" `
-            -OutFile $installer
-
-          & $installer `
-            --root "$env:QT_ROOT" `
-            --accept-licenses `
-            --default-answer `
-            --confirm-command `
-            install qt.qt6.6120.win64_msvc2022_64
-
-          if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-          }
-
-      - name: Install Qt SDK (macOS)
-        if: runner.os == 'macOS'
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          test -n "${QT_INSTALLER_JWT_TOKEN:-}" || {
-            echo "Configure the QT_INSTALLER_JWT_TOKEN repository Actions secret."
-            exit 1
-          }
-
-          curl -fL \
-            https://download.qt.io/official_releases/online_installers/qt-online-installer-macOS-universal.dmg \
-            -o "$RUNNER_TEMP/qt-installer.dmg"
-
-          mkdir -p "$RUNNER_TEMP/QtInstaller"
-
-          hdiutil attach \
-            "$RUNNER_TEMP/qt-installer.dmg" \
-            -nobrowse \
-            -quiet \
-            -mountpoint "$RUNNER_TEMP/QtInstaller"
-
-          trap 'hdiutil detach "$RUNNER_TEMP/QtInstaller" -quiet || true' EXIT
-
-          installer="$(find "$RUNNER_TEMP/QtInstaller" \
-            -type f -path '*/Contents/MacOS/*' -perm -111 \
-            -print -quit)"
-
-          test -n "$installer"
-
-          "$installer" \
-            --root "$QT_ROOT" \
-            --accept-licenses \
-            --default-answer \
-            --confirm-command \
-            install qt.qt6.6120.clang_64
-
-      - name: Install Qt SDK (Linux)
-        if: runner.os == 'Linux'
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          test -n "${QT_INSTALLER_JWT_TOKEN:-}" || {
-            echo "Configure the QT_INSTALLER_JWT_TOKEN repository Actions secret."
-            exit 1
-          }
-
-          curl -fL \
-            https://download.qt.io/official_releases/online_installers/qt-online-installer-linux-x64-online.run \
-            -o "$RUNNER_TEMP/qt-installer.run"
-
-          chmod +x "$RUNNER_TEMP/qt-installer.run"
-
-          "$RUNNER_TEMP/qt-installer.run" \
-            --root "$QT_ROOT" \
-            --accept-licenses \
-            --default-answer \
-            --confirm-command \
-            install qt.qt6.6120.linux_gcc_64
-
-      - name: Verify Qt SDK
+      - name: Create bundled Java runtime
         shell: bash
         run: |
           set -euxo pipefail
-          test -d "$QT_DIR"
-          ls "$QT_DIR"
+          mkdir -p dist
+          jlink \
+            --add-modules java.base,java.desktop,java.logging,java.management,java.naming,java.net.http,java.prefs,java.sql,java.xml,jdk.unsupported \
+            --strip-debug \
+            --no-header-files \
+            --no-man-pages \
+            --compress=2 \
+            --output dist/jre
+          test -x dist/jre/bin/java
 
       - name: Download QtJambi deployment tools
         shell: bash
         run: |
           set -euo pipefail
+          mkdir -p tools qt-bundle
 
-          mkdir -p tools dist
+          base="https://repo.maven.apache.org/maven2/io/qtjambi"
+          v="$QTJAMBI_VERSION"
+          p="${{ matrix.platform }}"
 
-          BASE="https://repo.maven.apache.org/maven2/io/qtjambi"
-          VERSION="$QTJAMBI_VERSION"
-          PLATFORM="$QTJAMBI_PLATFORM"
+          curl -fLsS "$base/qtjambi/$v/qtjambi-$v.jar" -o tools/qtjambi.jar
+          curl -fLsS "$base/qtjambi-native-$p/$v/qtjambi-native-$p-$v.jar" -o tools/qtjambi-native.jar
+          curl -fLsS "$base/qtjambi-deployer/$v/qtjambi-deployer-$v.jar" -o tools/deployer.jar
+          curl -fLsS "$base/qtjambi-deployer-native-$p/$v/qtjambi-deployer-native-$p-$v.jar" -o tools/deployer-native.jar
 
-          download() {
-            curl -fLsS "$1" -o "$2"
-          }
-
-          download \
-            "$BASE/qtjambi/$VERSION/qtjambi-$VERSION.jar" \
-            "tools/qtjambi-$VERSION.jar"
-
-          download \
-            "$BASE/qtjambi-native-$PLATFORM/$VERSION/qtjambi-native-$PLATFORM-$VERSION.jar" \
-            "tools/qtjambi-native-$PLATFORM-$VERSION.jar"
-
-          download \
-            "$BASE/qtjambi-deployer/$VERSION/qtjambi-deployer-$VERSION.jar" \
-            "tools/qtjambi-deployer-$VERSION.jar"
-
-          download \
-            "$BASE/qtjambi-deployer-native-$PLATFORM/$VERSION/qtjambi-deployer-native-$PLATFORM-$VERSION.jar" \
-            "tools/qtjambi-deployer-native-$PLATFORM-$VERSION.jar"
-
-      # The native QtJambi JAR is deliberately included in the
-      # deployer classpath. Omitting it caused the macOS failure.
-
-      - name: Create Windows application
-        if: runner.os == 'Windows'
-        shell: pwsh
+      - name: Bundle Qt libraries and plugins
+        shell: bash
         run: |
-          $version = $env:QTJAMBI_VERSION
-          $platform = $env:QTJAMBI_PLATFORM
-          $out = "dist/CrazyWaffleMidi"
+          set -euo pipefail
 
-          New-Item -ItemType Directory -Force -Path `
-            "$out/bin", "$out/lib", "$out/jre" | Out-Null
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            native_path="$QT_DIR/bin"
+            cp_sep=';'
+          else
+            native_path="$QT_DIR/lib"
+            cp_sep=':'
+          fi
 
-          $cp = "tools/qtjambi-$version.jar;" +
-                "tools/qtjambi-native-$platform-$version.jar;" +
-                "tools/qtjambi-deployer-$version.jar;" +
-                "tools/qtjambi-deployer-native-$platform-$version.jar"
+          cp="tools/qtjambi.jar${cp_sep}tools/qtjambi-native.jar${cp_sep}tools/deployer.jar${cp_sep}tools/deployer-native.jar"
 
-          & java "-Djava.library.path=$env:QT_DIR\bin" `
-            -cp $cp `
-            io.qt.qtjambi.deployer.Main app `
-            --application=CrazyWaffleMidi `
-            '--class-path=../lib/*' `
-            --library-path=. `
-            --jvm-path=../jre `
-            --main-class=com.cwm.CrazyWaffleMidi.Main `
-            --dir=$out
+          java "-Djava.library.path=$native_path" \
+            -cp "$cp" \
+            io.qt.qtjambi.deployer.Main qt \
+            --platform="${{ matrix.platform }}" \
+            --qtdir="$QT_DIR" \
+            --target-directory=qt-bundle
 
-          if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-          }
+          find qt-bundle -maxdepth 1 -type f -name '*.jar' -print
+          test -n "$(find qt-bundle -maxdepth 1 -type f -name '*.jar' -print -quit)"
 
-          Copy-Item "$env:QT_DIR\bin\*.dll" "$out\bin\" -Force
-          Copy-Item "$env:QT_DIR\plugins" "$out\" -Recurse -Force
+      - name: Package Windows application
+        if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
 
-          Copy-Item app/build/libs/app-all.jar "$out\lib\"
-          Copy-Item "tools/qtjambi-$version.jar" "$out\lib\"
-          Copy-Item "tools/qtjambi-native-$platform-$version.jar" "$out\lib\"
+          out="dist/CrazyWaffleMidi"
+          mkdir -p "$out/bin" "$out/lib"
 
-          Copy-Item "$env:JAVA_HOME\*" "$out\jre\" -Recurse -Force
+          cp app/build/libs/app-all.jar "$out/lib/"
+          cp tools/qtjambi.jar "$out/lib/"
+          cp tools/qtjambi-native.jar "$out/lib/"
+          cp qt-bundle/*.jar "$out/lib/"
+          cp -R dist/jre/. "$out/jre/"
 
-          Compress-Archive `
-            -Path "$out\*" `
-            -DestinationPath dist/CrazyWaffleMidi-windows-x64.zip `
-            -Force
+          cp="tools/qtjambi.jar;tools/qtjambi-native.jar;tools/deployer.jar;tools/deployer-native.jar"
 
-      - name: Create macOS application
+          java "-Djava.library.path=$QT_DIR/bin" \
+            -cp "$cp" \
+            io.qt.qtjambi.deployer.Main app \
+            --application=CrazyWaffleMidi \
+            '--class-path=../lib/*' \
+            --library-path=. \
+            --jvm-path=../jre \
+            --main-class=com.cwm.CrazyWaffleMidi.Main \
+            --dir="$out/bin"
+
+          7z a dist/CrazyWaffleMidi-windows-x64.zip "$out/*"
+
+      - name: Package macOS application
         if: runner.os == 'macOS'
         shell: bash
         run: |
           set -euo pipefail
 
-          VERSION="$QTJAMBI_VERSION"
-          PLATFORM="$QTJAMBI_PLATFORM"
+          app="dist/CrazyWaffleMidi.app"
+          contents="$app/Contents"
+          mkdir -p "$contents/lib" "$contents/jre"
 
-          CP="tools/qtjambi-$VERSION.jar"
-          CP="$CP:tools/qtjambi-native-$PLATFORM-$VERSION.jar"
-          CP="$CP:tools/qtjambi-deployer-$VERSION.jar"
-          CP="$CP:tools/qtjambi-deployer-native-$PLATFORM-$VERSION.jar"
+          cp app/build/libs/app-all.jar "$contents/lib/"
+          cp tools/qtjambi.jar "$contents/lib/"
+          cp tools/qtjambi-native.jar "$contents/lib/"
+          cp qt-bundle/*.jar "$contents/lib/"
+          cp -R dist/jre/. "$contents/jre/"
+
+          cp="tools/qtjambi.jar:tools/qtjambi-native.jar:tools/deployer.jar:tools/deployer-native.jar"
 
           java "-Djava.library.path=$QT_DIR/lib" \
-            -cp "$CP" \
+            -cp "$cp" \
             io.qt.qtjambi.deployer.Main app \
             --application=CrazyWaffleMidi \
             '--class-path=CrazyWaffleMidi.app/Contents/lib/*' \
@@ -266,156 +201,41 @@ jobs:
             --dir=dist \
             -- -XstartOnFirstThread
 
-          APP="dist/CrazyWaffleMidi.app"
-          CONTENTS="$APP/Contents"
-
-          mkdir -p \
-            "$CONTENTS/lib" \
-            "$CONTENTS/jre" \
-            "$CONTENTS/Frameworks"
-
-          cp app/build/libs/app-all.jar "$CONTENTS/lib/"
-          cp "tools/qtjambi-$VERSION.jar" "$CONTENTS/lib/"
-          cp "tools/qtjambi-native-$PLATFORM-$VERSION.jar" "$CONTENTS/lib/"
-
-          cp -R "$JAVA_HOME"/. "$CONTENTS/jre/"
-
-          for item in "$QT_DIR"/lib/*.framework "$QT_DIR"/lib/*.dylib; do
-            if [ -e "$item" ]; then
-              cp -R "$item" "$CONTENTS/Frameworks/"
-            fi
-          done
-
-          cp -R "$QT_DIR/plugins" "$CONTENTS/"
-
           hdiutil create \
             -volname CrazyWaffleMidi \
-            -srcfolder "$APP" \
-            -ov \
-            -format UDZO \
+            -srcfolder "$app" \
+            -ov -format UDZO \
             dist/CrazyWaffleMidi-macos.dmg
 
-      - name: Create Linux AppImage
+      - name: Package Linux AppImage
         if: runner.os == 'Linux'
         shell: bash
         run: |
           set -euo pipefail
 
-          VERSION="$QTJAMBI_VERSION"
-          PLATFORM="$QTJAMBI_PLATFORM"
-          OUT="dist/CrazyWaffleMidi"
+          out="dist/CrazyWaffleMidi"
+          mkdir -p "$out/lib" "$out/jre"
 
-          CP="tools/qtjambi-$VERSION.jar"
-          CP="$CP:tools/qtjambi-native-$PLATFORM-$VERSION.jar"
-          CP="$CP:tools/qtjambi-deployer-$VERSION.jar"
-          CP="$CP:tools/qtjambi-deployer-native-$PLATFORM-$VERSION.jar"
+          cp app/build/libs/app-all.jar "$out/lib/"
+          cp tools/qtjambi.jar "$out/lib/"
+          cp tools/qtjambi-native.jar "$out/lib/"
+          cp qt-bundle/*.jar "$out/lib/"
+          cp -R dist/jre/. "$out/jre/"
 
-          mkdir -p "$OUT"
+          cp="tools/qtjambi.jar:tools/qtjambi-native.jar:tools/deployer.jar:tools/deployer-native.jar"
 
           java "-Djava.library.path=$QT_DIR/lib" \
-            -cp "$CP" \
+            -cp "$cp" \
             io.qt.qtjambi.deployer.Main app \
             --application=CrazyWaffleMidi \
-            '--class-path=lib/*' \
+            --class-path=lib/* \
             --library-path=lib \
             --jvm-path=jre \
             --main-class=com.cwm.CrazyWaffleMidi.Main \
-            --dir="$OUT"
-
-name: Build and Release
-
-on:
-  workflow_dispatch:
-    inputs:
-      version:
-        description: "Release version (e.g. v1.0.0)"
-        required: true
-        type: string
-        default: "v1.0.0"
-
-permissions:
-  contents: write
-
-jobs:
-  build:
-    name: Build ${{ matrix.platform }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-2022
-            platform: windows-x64
-          - os: macos-14
-            platform: macos
-          - os: ubuntu-22.04
-            platform: linux-x64
-
-    runs-on: ${{ matrix.os }}
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Set up Java
-        uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: "21"
-          cache: gradle
-
-      - name: Build application
-        shell: bash
-        run: |
-          chmod +x ./gradlew
-          ./gradlew build
-          ls -lah app/build/libs/
-          test -f app/build/libs/app-all.jar
-
-      - name: Download QtJambi deployment tools
-        shell: bash
-        env:
-          VERSION: "6.12.0"
-        run: |
-          set -euo pipefail
-
-          mkdir -p tools dist
-          BASE="https://repo1.maven.org/maven2/io/qtjambi"
-
-          curl -fsSL "$BASE/qtjambi/$VERSION/qtjambi-$VERSION.jar" \
-            -o tools/qtjambi.jar
-
-          curl -fsSL "$BASE/qtjambi-deployer/$VERSION/qtjambi-deployer-$VERSION.jar" \
-            -o tools/deployer.jar
-
-          case "${{ matrix.platform }}" in
-            windows-x64) NATIVE="windows-x64" ;;
-            linux-x64)   NATIVE="linux-x64" ;;
-            macos)       NATIVE="macos" ;;
-          esac
-
-          curl -fsSL \
-            "$BASE/qtjambi-deployer-native-$NATIVE/$VERSION/qtjambi-deployer-native-$NATIVE-$VERSION.jar" \
-            -o tools/deployer-native.jar
-
-          curl -fsSL \
-            "$BASE/qtjambi-native-$NATIVE/$VERSION/qtjambi-native-$NATIVE-$VERSION.jar" \
-            -o tools/qtjambi-native.jar
-
-      # QtJambi requires the matching Qt native libraries.
-
-          mkdir -p "$OUT/lib" "$OUT/jre"
-
-          cp app/build/libs/app-all.jar "$OUT/lib/"
-          cp "tools/qtjambi-$VERSION.jar" "$OUT/lib/"
-          cp "tools/qtjambi-native-$PLATFORM-$VERSION.jar" "$OUT/lib/"
-
-          cp -R "$JAVA_HOME"/. "$OUT/jre/"
-
-          cp -a "$QT_DIR"/lib/*.so* "$OUT/lib/"
-          cp -R "$QT_DIR/plugins" "$OUT/"
+            --dir="$out"
 
           mkdir -p AppDir
-          cp -a "$OUT"/. AppDir/
+          cp -a "$out"/. AppDir/
 
           cat > AppDir/AppRun <<'EOF'
           #!/bin/sh
@@ -436,35 +256,20 @@ jobs:
           curl -fL \
             https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage \
             -o "$RUNNER_TEMP/appimagetool.AppImage"
-
           chmod +x "$RUNNER_TEMP/appimagetool.AppImage"
 
           APPIMAGE_EXTRACT_AND_RUN=1 ARCH=x86_64 \
             "$RUNNER_TEMP/appimagetool.AppImage" \
             AppDir dist/CrazyWaffleMidi-linux-x64.AppImage
 
-      - name: Upload Windows artifact
-        if: runner.os == 'Windows'
+      - name: Upload platform artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-release
-          path: dist/*.zip
-          if-no-files-found: error
-
-      - name: Upload macOS artifact
-        if: runner.os == 'macOS'
-        uses: actions/upload-artifact@v4
-        with:
-          name: macos-release
-          path: dist/*.dmg
-          if-no-files-found: error
-
-      - name: Upload Linux artifact
-        if: runner.os == 'Linux'
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-release
-          path: dist/*.AppImage
+          name: ${{ matrix.platform }}
+          path: |
+            dist/*.zip
+            dist/*.dmg
+            dist/*.AppImage
           if-no-files-found: error
 
   release:
@@ -473,7 +278,7 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Download all platform builds
+      - name: Download all platform artifacts
         uses: actions/download-artifact@v4
         with:
           path: release-assets
