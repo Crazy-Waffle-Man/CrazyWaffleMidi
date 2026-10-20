@@ -31,17 +31,35 @@ jobs:
           java-version: "21"
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-      - name: Build and upload app image (Linux)
+      - name: Gradle build task
+        run: | 
+          ./gradlew build
+      - name: Create QtJambi bundled executable (Linux)
         if: runner.os == 'Linux'
-        run: ./gradlew :app:jpackage
-      - name: Build and upload app image (MacOS)
-        if: runner.os == 'macOS'
-        run: ./gradlew :app:jpackage
-      - name: Build and upload app image (Windows)
-        if: runner.os == 'Windows'
-        run: .\gradlew :app:jpackage
-      - name: Upload app image
-        uses: actions/upload-artifact@v4
-        with:
-          name: CrazyWaffleMidi-linux
-          path: app/build/dist/
+        shell: bash
+        run: |
+          mkdir tmp
+          cp ./app/build/jmods/app.jar tmp/app.jar
+          cp ./app/build/jmods/qtjambi-6.12.0.jar tmp/qtjambi-6.12.0.jar
+          cp ./app/build/jmods/qtjambi-deployer-6.12.0.jar tmp/qtjambi-deployer-6.12.0.jar
+
+          cp ./app/build/jmods/qtjambi-native-linux-x64-6.12.0.jar tmp/qtjambi-native-linux-x64-6.12.0.jar
+          cp ./app/build/jmods/qtjambi-deployer-native-linux-x64-6.12.0.jar tmp/qtjambi-deployer-native-linux-x64-6.12.0.jar
+
+          java \
+          -p tmp/qtjambi-6.12.0.jar:tmp/qtjambi-deployer-6.12.0.jar \
+          -m qtjambi.deployer app \
+          --application=CrazyWaffleMidi \
+          --class-path=lib/app.jar:lib/qtjambi-6.12.0.jar:lib/qtjambi-native-linux-x64-6.12.0.jar \
+          --library-path=lib \
+          --jvm-path=jre \
+          --main-class=com.cwm.CrazyWaffleMidi.Main \
+          --dir=output
+          
+          rm tmp/*deployer*
+          cp -r tmp output/lib
+          cp /usr/lib/libQt6Core.so output/lib/libQt6Core.so
+          cp /usr/lib/libQt6Gui.so output/lib/libQt6Gui.so
+          cp /usr/lib/libQt6Widgets.so output/lib/libQt6Widgets.so
+
+          # Bundle JRE in output/jre/
