@@ -66,6 +66,60 @@ jobs:
 
           jlink --module-path "$(dirname "$(dirname "$(readlink -f "$(which jlink)")")")/jmods" --add-modules ALL-MODULE-PATH \
           --output output/jre --strip-debug --no-man-pages --no-header-files
+          mv output/ CrazyWaffleMidi-linux
+          zip -r CrazyWaffleMidi-linux.zip CrazyWaffleMidi-linux/
+          rm tmp CrazyWaffleMidi-linux -rf
+      - name: Create QtJambi bundled zipfle (MacOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          if ! command -v macdeployqt >/dev/null 2>&1; then
+            echo "macdeployqt not found; installing Qt"
+            if ! command -v brew >/dev/null 2>&1; then
+              echo "Brew not installed"
+              exit 1
+            fi
+            brew install qt
+          fi
+          if command -v macdeployqt >/dev/null 2>&1; then
+            MACDEPLOYQT="$(command -v macdeployqt)"
+          elif command -v brew >/dev/null 2>&1 && \
+            [ -x "$(brew --prefix qt)/bin/macdeployqt" ]; then
+            MACDEPLOYQT="$(brew --prefix qt)/bin/macdeployqt"
+          else
+            echo "Error: macdeployqt still not found after installation."
+            exit 1
+          fi
 
-          zip -r CrazyWaffleMidi-linux.zip output/
-          rm tmp output -rf
+          echo "Using macdeployqt $MACDEPLOYQT"
+
+          mkdir tmp
+          cp ./app/build/jmods/app.jar                                      tmp/app.jar
+          cp ./app/build/jmods/qtjambi-6.12.0.jar                           tmp/qtjambi-6.12.0.jar
+          cp ./app/build/jmods/qtjambi-deployer-6.12.0.jar                  tmp/qtjambi-deployer-6.12.0.jar
+
+          cp ./app/build/jmods/qtjambi-native-macos-6.12.0.jar          tmp/qtjambi-native-macos-6.12.0.jar
+          cp ./app/build/jmods/qtjambi-deployer-native-macos-6.12.0.jar tmp/qtjambi-deployer-native-macos-6.12.0.jar
+
+          java \
+          -p tmp/qtjambi-6.12.0.jar:tmp/qtjambi-deployer-6.12.0.jar \
+          -m qtjambi.deployer app \
+          --application=CrazyWaffleMidi \
+          --class-path=CrazyWaffleMidi.app/Contents/lib/app.jar:CrazyWaffleMidi.app/Contents/lib/qtjambi-6.12.0.jar:CrazyWaffleMidi.app/Contents/lib/qtjambi-native-macos-6.12.0.jar \
+          --library-path=CrazyWaffleMidi.app/Contents/Frameworks \
+          --jvm-path=CrazyWaffleMidi.app/Contents/jre \
+          --main-class=com.cwm.CrazyWaffleMidi.Main \
+          --dir=output
+
+          rm tmp/*deployer*
+
+          jlink --module-path "$(/usr/libexec/java_home -v 21)/jmods" --add-modules ALL-MODULE-PATH \
+          --output output/CrazyWaffleMidi.app/Contents/jre --strip-debug --no-man-pages --no-header-files
+
+          cp tmp/app.jar                         output/CrazyWaffleMidi.app/Contents/lib/app.jar
+          cp tmp/qtjambi-6.12.0.jar              output/CrazyWaffleMidi.app/Contents/lib/qtjambi-6.12.0.jar
+          cp tmp/qtjambi-native-macos-6.12.0.jar output/CrazyWaffleMidi.app/Contents/lib/qtjambi-native-macos-6.12.0.jar
+
+          "$MACDEPLOYQT" output/CrazyWaffleMidi.app -verbose=2
+
+          ditto -c -k --sequesterRsrc --keepParent output/CrazyWaffleMidi.app CrazyWaffleMidi-macos.zip
