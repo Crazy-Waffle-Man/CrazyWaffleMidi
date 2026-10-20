@@ -34,16 +34,16 @@ jobs:
       - name: Gradle build task
         run: | 
           ./gradlew build
-      - name: Create QtJambi bundled executable (Linux)
+      - name: Create QtJambi bundled zipfile (Linux)
         if: runner.os == 'Linux'
         shell: bash
         run: |
           mkdir tmp
-          cp ./app/build/jmods/app.jar tmp/app.jar
-          cp ./app/build/jmods/qtjambi-6.12.0.jar tmp/qtjambi-6.12.0.jar
-          cp ./app/build/jmods/qtjambi-deployer-6.12.0.jar tmp/qtjambi-deployer-6.12.0.jar
+          cp ./app/build/jmods/app.jar                                      tmp/app.jar
+          cp ./app/build/jmods/qtjambi-6.12.0.jar                           tmp/qtjambi-6.12.0.jar
+          cp ./app/build/jmods/qtjambi-deployer-6.12.0.jar                  tmp/qtjambi-deployer-6.12.0.jar
 
-          cp ./app/build/jmods/qtjambi-native-linux-x64-6.12.0.jar tmp/qtjambi-native-linux-x64-6.12.0.jar
+          cp ./app/build/jmods/qtjambi-native-linux-x64-6.12.0.jar          tmp/qtjambi-native-linux-x64-6.12.0.jar
           cp ./app/build/jmods/qtjambi-deployer-native-linux-x64-6.12.0.jar tmp/qtjambi-deployer-native-linux-x64-6.12.0.jar
 
           java \
@@ -63,3 +63,9 @@ jobs:
           cp /usr/lib/libQt6Widgets.so output/lib/libQt6Widgets.so
 
           # Bundle JRE in output/jre/
+
+          jlink --module-path "$(dirname "$(dirname "$(readlink -f "$(which jlink)")")")/jmods" --add-modules ALL-MODULE-PATH \
+          --output output/jre --strip-debug --no-man-pages --no-header-files
+
+          zip -r CrazyWaffleMidi-linux.zip output/
+          rm tmp output -rf
