@@ -22,21 +22,19 @@ jobs:
         include:
           - os: windows-2022
             platform: windows-x64
-            qt_platform: windows
-            qt_arch: win64_msvc2022_64
+            qt_arch: win64_msvc2019_64
           - os: macos-14
             platform: macos
-            qt_platform: mac
             qt_arch: clang_64
           - os: ubuntu-22.04
             platform: linux-x64
-            qt_platform: linux
             qt_arch: gcc_64
 
     env:
       APP_NAME: CrazyWaffleMidi
       QT_VERSION: "6.12.0"
       QT_ROOT: ${{ github.workspace }}/Qt
+      QT_DIR: ${{ github.workspace }}/Qt/6.12.0/${{ matrix.qt_arch }}
       QTJAMBI_VERSION: "6.12.0"
 
     steps:
@@ -50,27 +48,19 @@ jobs:
           java-version: "21"
           cache: gradle
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
         with:
-          python-version: "3.x"
+          version: "6.12.0"
+          arch: ${{ matrix.qt_arch }}
+          cache: true
 
-      - name: Install Qt with aqtinstall
+      - name: Verify Qt installation
         shell: bash
         run: |
           set -euxo pipefail
-          python -m pip install --upgrade pip aqtinstall
-          python -m aqt install-qt "${{ matrix.qt_platform }}" desktop "${QT_VERSION}" "${{ matrix.qt_arch }}" --outputdir "$QT_ROOT"
-
-          qt_dir="$(find "$QT_ROOT" -maxdepth 3 -type d \( -name "${{ matrix.qt_arch }}" -o -name "gcc_64" -o -name "clang_64" -o -name "msvc*" \) | head -n 1)"
-          if [ -z "$qt_dir" ]; then
-            echo "Qt installation not found under $QT_ROOT" >&2
-            find "$QT_ROOT" -maxdepth 4 -print | head -n 200 >&2
-            exit 1
-          fi
-
-          echo "QT_DIR=$qt_dir" >> "$GITHUB_ENV"
-          echo "Installed Qt at $qt_dir"
+          test -d "$QT_DIR"
+          ls "$QT_DIR"
 
       - name: Install Linux Qt runtime deps
         if: runner.os == 'Linux'
