@@ -123,3 +123,54 @@ jobs:
           "$MACDEPLOYQT" output/CrazyWaffleMidi.app -verbose=2
 
           ditto -c -k --sequesterRsrc --keepParent output/CrazyWaffleMidi.app CrazyWaffleMidi-macos.zip
+      - name: Create QtJambi bundled zipfle (Windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          # TODO: Check for/install windeployqt
+
+          New-Item -ItemType Directory -Path tmp -Force | Out-Null
+
+          Copy-Item ./app/build/jmods/app.jar                                      tmp/app.jar
+          Copy-Item ./app/build/jmods/qtjambi-6.12.0.jar                           tmp/qtjambi-6.12.0.jar
+          Copy-Item ./app/build/jmods/qtjambi-deployer-6.12.0.jar                  tmp/qtjambi-deployer-6.12.0.jar
+
+          Copy-Item ./app/build/jmods/qtjambi-native-windows-x64-6.12.0.jar          tmp/qtjambi-native-windows-x64-6.12.0.jar
+          Copy-Item ./app/build/jmods/qtjambi-deployer-native-windows-x64-6.12.0.jar tmp/qtjambi-deployer-native-windows-x64-6.12.0.jar
+
+          java `
+          -p tmp/qtjambi-6.12.0.jar:tmp/qtjambi-deployer-6.12.0.jar `
+          -m qtjambi.deployer app `
+          --application=CrazyWaffleMidi `
+          --class-path=../lib/app.jar:../lib/qtjambi-6.12.0.jar:../lib/qtjambi-native-windows-x64-6.12.0.jar `
+          --library-path=. `
+          --jvm-path=../jre `
+          --main-class=com.cwm.CrazyWaffleMidi.Main `
+          --dir=output
+
+          Get-ChildItem tmp/*deployer* | Remove-Item -Force
+
+          Copy-Item tmp output/lib -Recurse -Force
+
+          # Copy-Item /usr/lib/libQt6Core.so    output/lib/libQt6Core.so
+          # Copy-Item /usr/lib/libQt6Gui.so     output/lib/libQt6Gui.so
+          # Copy-Item /usr/lib/libQt6Widgets.so output/lib/libQt6Widgets.so
+
+          $javaHome = Split-Path (Split-Path (Get-Command jlink).Source -Parent) -Parent
+
+          jlink `
+              --module-path "$javaHome/jmods" `
+              --add-modules ALL-MODULE-PATH `
+              --output output/jre `
+              --strip-debug `
+              --no-man-pages `
+              --no-header-files
+
+          Move-Item output CrazyWaffleMidi-windows
+
+          Compress-Archive `
+              -Path CrazyWaffleMidi-windows `
+              -DestinationPath CrazyWaffleMidi-windows.zip `
+              -Force
+
+          Remove-Item tmp, CrazyWaffleMidi-windows -Recurse -Force
