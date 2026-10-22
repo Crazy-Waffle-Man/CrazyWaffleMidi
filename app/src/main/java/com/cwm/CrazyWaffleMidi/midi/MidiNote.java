@@ -38,7 +38,9 @@ public class MidiNote {
     public long endTick() {
         return startTick + durationTicks;
     }
-
+    public int getFrequency() {
+        return (int) Math.round(Math.pow(2.0d, (pitch - 69.0d) / 12.0d));
+    }
     public void setPitch(int pitch) {
         this.pitch = Math.clamp(pitch, 0, 127);
     }

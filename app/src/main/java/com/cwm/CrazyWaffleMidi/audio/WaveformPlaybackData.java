@@ -2,6 +2,8 @@ package com.cwm.CrazyWaffleMidi.audio;
 
 import java.util.Arrays;
 
+import com.cwm.CrazyWaffleMidi.midi.MidiNote;
+
 public class WaveformPlaybackData {
     private byte[] data;
     private int sampleRate;
@@ -13,6 +15,30 @@ public class WaveformPlaybackData {
 
     public int maxSamples() {
         return data.length;
+    }
+
+    public void stretchResizeData(int length) {
+        byte[] newData = new byte[length];
+        for (int i = 0; i < length; i++) {
+            newData[i] = data[(int) Math.floor(((float) i / (float) length) * data.length)];
+        }
+        data = newData.clone();
+    }
+    public void repeatResizeData(int length) {
+        byte[] newData = new byte[length];
+        for (int i = 0; i < length; i++) {
+            newData[i] = data[i % data.length];
+        }
+        data = newData.clone();
+    }
+    public void emptyResizeData(int length) {
+        data = Arrays.copyOf(data, length);
+    }
+    public byte[] getData() {
+        return data.clone();
+    }
+    public int sampleRate() {
+        return sampleRate;
     }
 
     public void add(Waveform form, int freq, int vol, int duration, int startTime) {
@@ -38,27 +64,10 @@ public class WaveformPlaybackData {
             data[i] += (byte) Math.clamp(sample, -128, 127);
         }
     }
-    public void stretchResizeData(int length) {
-        byte[] newData = new byte[length];
-        for (int i = 0; i < length; i++) {
-            newData[i] = data[(int) Math.floor(((float) i / (float) length) * data.length)];
-        }
-        data = newData.clone();
+    public void add(MidiNote note, int millisPerTick) {
+        add(Waveform.SINE, note, millisPerTick);
     }
-    public void repeatResizeData(int length) {
-        byte[] newData = new byte[length];
-        for (int i = 0; i < length; i++) {
-            newData[i] = data[i % data.length];
-        }
-        data = newData.clone();
-    }
-    public void emptyResizeData(int length) {
-        data = Arrays.copyOf(data, length);
-    }
-    public byte[] getData() {
-        return data.clone();
-    }
-    public int sampleRate() {
-        return sampleRate;
+    public void add(Waveform form, MidiNote note, int millisPerTick) {
+        add(form, note.getFrequency(), note.velocity(), (int) (note.durationTicks() * millisPerTick), (int) (note.startTick() * millisPerTick));
     }
 }

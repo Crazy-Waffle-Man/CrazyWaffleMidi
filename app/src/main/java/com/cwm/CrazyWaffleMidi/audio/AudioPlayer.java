@@ -5,6 +5,10 @@ import javax.sound.sampled.AudioSystem;
 import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 
+import com.cwm.CrazyWaffleMidi.midi.MidiNote;
+import com.cwm.CrazyWaffleMidi.midi.MidiNoteSequence;
+import com.cwm.CrazyWaffleMidi.ui.midi.PianoRollViewState;
+
 public class AudioPlayer {
     public static void main(String[] args) {
         try {
@@ -19,6 +23,15 @@ public class AudioPlayer {
             wpd.add(Waveform.SINE, 440, 50, 5000, 0);
             wpd.add(Waveform.SAWTOOTH, 660, 50, 4000, 100);
             createTone(wpd);
+
+            wpd = new WaveformPlaybackData(100);
+            MidiNoteSequence chord = new MidiNoteSequence();
+            chord.addMidiNote(60, 0, 4 * PianoRollViewState.ticksPerQuarter, 50);
+            chord.addMidiNote(64, PianoRollViewState.ticksPerQuarter, 3 * PianoRollViewState.ticksPerQuarter, 50);
+            chord.addMidiNote(67, 2 * PianoRollViewState.ticksPerQuarter, 2 * PianoRollViewState.ticksPerQuarter, 50);
+            for (MidiNote c : chord) {
+                wpd.add(Waveform.SINE, c, 1);
+            }
         } catch (LineUnavailableException e) {
             e.printStackTrace();
         }
