@@ -7,3 +7,9 @@ To run it, you need to have a JDK of some variety.
 1. Download this repository (either via the zip download/extract or with `git clone https://github.com/Crazy-Waffle-Man/CrazyWaffleMidi.git`) and navigate to the folder on your device.
 2. Right click on the background of your file explorer and press "Open in terminal"
 3. Run the app by typing `./run`
+
+## Disclosures
+This app uses Qt6.12.0 as a dependency. None of the code in Qt6.12.0 is used or modified here. It is distributed under the GPL 3.0 license (I think) and its source code can be found [here](https://github.com/qt/qtbase/tree/6.12.0).
+
+
+I used a large language model for minor fixes in the macOS build script and to translate the build scripts to Powershell. There is no AI use in the actual app.
