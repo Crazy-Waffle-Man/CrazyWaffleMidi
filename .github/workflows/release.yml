@@ -152,6 +152,7 @@ jobs:
           jlink --module-path "$(/usr/libexec/java_home -v 21)/jmods" --add-modules ALL-MODULE-PATH \
           --output output/CrazyWaffleMidi.app/Contents/jre --strip-debug --no-man-pages --no-header-files
 
+          mkdir output/CrazyWaffleMidi.app/Contents/lib/
           cp tmp/app.jar                         output/CrazyWaffleMidi.app/Contents/lib/app.jar
           cp tmp/qtjambi-6.12.0.jar              output/CrazyWaffleMidi.app/Contents/lib/qtjambi-6.12.0.jar
           cp tmp/qtjambi-native-macos-6.12.0.jar output/CrazyWaffleMidi.app/Contents/lib/qtjambi-native-macos-6.12.0.jar
