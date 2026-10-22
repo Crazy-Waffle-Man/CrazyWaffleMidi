@@ -6,18 +6,23 @@ import javax.sound.sampled.LineUnavailableException;
 import javax.sound.sampled.SourceDataLine;
 
 public class AudioPlayer {
-    // public static void main(String[] args) {
-    //     try {
-    //         createTone(440, 100, 500);
-    //         createTone(220, 50, 250);
-    //         createTone(new Waveform(Waveform.SINE), 880, 50, 500);
-    //         createTone(new Waveform(Waveform.SAWTOOTH), 440, 50, 250);
-    //         createTone(new Waveform(Waveform.SQUARE), 220, 50, 500);
-    //         createTone(new Waveform(Waveform.TRIANGLE), 880, 50, 750);
-    //     } catch (LineUnavailableException e) {
-    //         e.printStackTrace();
-    //     }
-    // }
+    public static void main(String[] args) {
+        try {
+            createTone(440, 100, 500);
+            createTone(220, 50, 250);
+            createTone(Waveform.SINE, 880, 50, 500);
+            createTone(Waveform.SAWTOOTH, 440, 50, 250);
+            createTone(Waveform.SQUARE, 220, 50, 500);
+            createTone(Waveform.TRIANGLE, 880, 50, 750);
+
+            WaveformPlaybackData wpd = new WaveformPlaybackData(100);
+            wpd.add(Waveform.SINE, 440, 50, 5000, 0);
+            wpd.add(Waveform.SAWTOOTH, 660, 50, 4000, 100);
+            createTone(wpd);
+        } catch (LineUnavailableException e) {
+            e.printStackTrace();
+        }
+    }
 
     /**
      * @param freq in Hz
@@ -63,6 +68,16 @@ public class AudioPlayer {
             buf[0] = (byte)(Math.clamp(sample, -128, 127));
             dataLine.write(buf, 0, 1);
         }
+        dataLine.drain();
+        dataLine.stop();
+        dataLine.close();
+    }
+    public static void createTone(WaveformPlaybackData data) throws LineUnavailableException {
+        AudioFormat format = new AudioFormat(data.sampleRate(), 8, 1, true, false);
+        SourceDataLine dataLine = AudioSystem.getSourceDataLine(format);
+        dataLine.open(format);
+        dataLine.start();
+        dataLine.write(data.getData(), 0, data.getData().length);
         dataLine.drain();
         dataLine.stop();
         dataLine.close();
