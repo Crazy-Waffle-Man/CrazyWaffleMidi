@@ -15,10 +15,13 @@ jobs:
         include:
           - os: windows-latest
             name: Windows
+            platform: windows
           - os: macos-latest
             name: macOS
+            platform: macos
           - os: ubuntu-latest
             name: Linux
+            platform: linux
     runs-on: ${{ matrix.os }}
     name: Package for ${{ matrix.os }}
     steps:
@@ -31,7 +34,17 @@ jobs:
           java-version: "21"
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
-      - name: Gradle build task
+      - name: Install QT (Windows)
+        if: runner.os == 'Windows'
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '6.12.0'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2022_64'
+          dir: '${{ github.workspace }}/Qt'
+          cache: true
+      - name: Gradle build
         run: | 
           ./gradlew build
       - name: Create QtJambi bundled zipfile (Linux)
@@ -131,40 +144,43 @@ jobs:
 
           New-Item -ItemType Directory -Path tmp -Force | Out-Null
 
-          Copy-Item ./app/build/jmods/app.jar                                      tmp/app.jar
-          Copy-Item ./app/build/jmods/qtjambi-6.12.0.jar                           tmp/qtjambi-6.12.0.jar
-          Copy-Item ./app/build/jmods/qtjambi-deployer-6.12.0.jar                  tmp/qtjambi-deployer-6.12.0.jar
+          Copy-Item .\app\build\jmods\app.jar                                      tmp\app.jar
+          Copy-Item .\app\build\jmods\qtjambi-6.12.0.jar                           tmp\qtjambi-6.12.0.jar
+          Copy-Item .\app\build\jmods\qtjambi-deployer-6.12.0.jar                  tmp\qtjambi-deployer-6.12.0.jar
 
-          Copy-Item ./app/build/jmods/qtjambi-native-windows-x64-6.12.0.jar          tmp/qtjambi-native-windows-x64-6.12.0.jar
-          Copy-Item ./app/build/jmods/qtjambi-deployer-native-windows-x64-6.12.0.jar tmp/qtjambi-deployer-native-windows-x64-6.12.0.jar
+          Copy-Item .\app\build\jmods\qtjambi-native-windows-x64-6.12.0.jar          tmp\qtjambi-native-windows-x64-6.12.0.jar
+          Copy-Item .\app\build\jmods\qtjambi-deployer-native-windows-x64-6.12.0.jar tmp\qtjambi-deployer-native-windows-x64-6.12.0.jar
 
           java `
-          -p tmp/qtjambi-6.12.0.jar:tmp/qtjambi-deployer-6.12.0.jar `
+          -p tmp\qtjambi-6.12.0.jar:tmp\qtjambi-deployer-6.12.0.jar `
           -m qtjambi.deployer app `
           --application=CrazyWaffleMidi `
-          --class-path=../lib/app.jar:../lib/qtjambi-6.12.0.jar:../lib/qtjambi-native-windows-x64-6.12.0.jar `
+          --class-path=..\lib\app.jar:..\lib\qtjambi-6.12.0.jar:..\lib\qtjambi-native-windows-x64-6.12.0.jar `
           --library-path=. `
-          --jvm-path=../jre `
+          --jvm-path=..\jre `
           --main-class=com.cwm.CrazyWaffleMidi.Main `
           --dir=output
 
-          Get-ChildItem tmp/*deployer* | Remove-Item -Force
+          Get-ChildItem tmp\*deployer* | Remove-Item -Force
 
-          Copy-Item tmp output/lib -Recurse -Force
+          Copy-Item tmp output\lib -Recurse -Force
 
-          # Copy-Item /usr/lib/libQt6Core.so    output/lib/libQt6Core.so
-          # Copy-Item /usr/lib/libQt6Gui.so     output/lib/libQt6Gui.so
-          # Copy-Item /usr/lib/libQt6Widgets.so output/lib/libQt6Widgets.so
+          # Copy-Item \usr\lib\libQt6Core.so    output\lib\libQt6Core.so
+          # Copy-Item \usr\lib\libQt6Gui.so     output\lib\libQt6Gui.so
+          # Copy-Item \usr\lib\libQt6Widgets.so output\lib\libQt6Widgets.so
 
           $javaHome = Split-Path (Split-Path (Get-Command jlink).Source -Parent) -Parent
 
           jlink `
-              --module-path "$javaHome/jmods" `
+              --module-path "$javaHome\jmods" `
               --add-modules ALL-MODULE-PATH `
-              --output output/jre `
+              --output output\jre `
               --strip-debug `
               --no-man-pages `
               --no-header-files
+
+          $WinDeployQt = Join-Path $env:QT_ROOT_DIR bin\windeployqt.exe
+          $WinDeployQt --verbose 2 output\CrazyWaffleMidi.exe
 
           Move-Item output CrazyWaffleMidi-windows
 
@@ -174,3 +190,30 @@ jobs:
               -Force
 
           Remove-Item tmp, CrazyWaffleMidi-windows -Recurse -Force
+      - name: Upload packaged zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.platform }}
+          path: CrazyWaffleMidi-${{ matrix.platform }}.zip
+          if-no-files-found: error
+          retention-days: 1
+  release:
+    name: Publish GitHub Release
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with: 
+          pattern: package-*
+          path: dist
+          merge-multiple: true
+      - name: Create and publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: CrazyWaffleMidi ${{ inputs.version }}
+          files: dist/*.zip
+          generate_release_notes: true
