@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-xinerama0 libxcb-xkb1 libxcb-cursor0
+          sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-xinerama0 libxcb-xkb1 libxcb-cursor0 libxcb-shape0
       - name: Create QtJambi bundled zipfile (Linux)
         if: runner.os == 'Linux'
         env: 
@@ -121,7 +121,14 @@ jobs:
 
           hdiutil detach "$MOUNT_POINT"
 
-          QT_LIB=find "$PWD/qt" -maxdepth 4 -type d -name lib
+          QT_LIB="$(find "$PWD/qt" -maxdepth 4 -type d -name lib -print -quit)"
+
+          ls -R qt
+
+          if [ -z "$QT_LIB" ]; then
+            echo "Qt lib dir not found"
+            exit 1
+          fi
 
           mkdir tmp
           cp ./app/build/jmods/app.jar                                      tmp/app.jar
