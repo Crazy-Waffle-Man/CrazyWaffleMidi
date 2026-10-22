@@ -6,3 +6,7 @@ build
 
 # Ignore Kotlin plugin data
 .kotlin
+
+# Ignore github workflow testing folders
+tmp
+output

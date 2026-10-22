@@ -1,0 +1,294 @@
+name: Release
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version'
+        required: true
+        default: 'v'
+        type: string
+jobs:
+  package:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            name: Windows
+            platform: windows
+          - os: macos-latest
+            name: macOS
+            platform: macos
+          - os: ubuntu-latest
+            name: Linux
+            platform: linux
+    runs-on: ${{ matrix.os }}
+    name: Package for ${{ matrix.name }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
+      - name: Gradle build
+        run: | 
+          ./gradlew build
+      - name: Install Qt installer dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 libxcb-xinerama0 libxcb-xkb1 libxcb-cursor0 libxcb-shape0
+      - name: Create QtJambi bundled zipfile (Linux)
+        if: runner.os == 'Linux'
+        env: 
+          QT_INSTALLER_JWT_TOKEN: ${{ secrets.QT_INSTALLER_JWT_TOKEN }}
+        shell: bash
+        run: |
+          curl -OL https://download.qt.io/official_releases/online_installers/qt-online-installer-linux-x64-online.run
+          chmod +x qt-online-installer-linux-x64-online.run
+          ./qt-online-installer-linux-x64-online.run --root $(pwd)/qt --accept-licenses --accept-obligations --default-answer --confirm-command install qt6.12.0-essentials
+
+          mkdir tmp
+          cp ./app/build/jmods/app.jar                                      tmp/app.jar
+          cp ./app/build/jmods/qtjambi-6.12.0.jar                           tmp/qtjambi-6.12.0.jar
+          cp ./app/build/jmods/qtjambi-deployer-6.12.0.jar                  tmp/qtjambi-deployer-6.12.0.jar
+
+          cp ./app/build/jmods/qtjambi-native-linux-x64-6.12.0.jar          tmp/qtjambi-native-linux-x64-6.12.0.jar
+          cp ./app/build/jmods/qtjambi-deployer-native-linux-x64-6.12.0.jar tmp/qtjambi-deployer-native-linux-x64-6.12.0.jar
+
+          java -Djava.library.path="qt/6.12.0/gcc_64/lib" \
+          -p tmp/qtjambi-6.12.0.jar:tmp/qtjambi-deployer-6.12.0.jar \
+          -m qtjambi.deployer app \
+          --application=CrazyWaffleMidi \
+          --class-path=lib/app.jar:lib/qtjambi-6.12.0.jar:lib/qtjambi-native-linux-x64-6.12.0.jar \
+          --library-path=lib \
+          --jvm-path=jre \
+          --main-class=com.cwm.CrazyWaffleMidi.Main \
+          --dir=output
+          
+          rm tmp/*deployer*
+          cp -r tmp output/lib
+          cp qt/6.12.0/gcc_64/lib/libQt6Core.so output/lib/libQt6Core.so
+          cp qt/6.12.0/gcc_64/lib/libQt6Gui.so output/lib/libQt6Gui.so
+          cp qt/6.12.0/gcc_64/lib/libQt6Widgets.so output/lib/libQt6Widgets.so
+
+          # Bundle JRE in output/jre/
+
+          jlink --module-path "$(dirname "$(dirname "$(readlink -f "$(which jlink)")")")/jmods" --add-modules ALL-MODULE-PATH \
+          --output output/jre --strip-debug --no-man-pages --no-header-files
+          mv output/ CrazyWaffleMidi-linux
+          zip -r CrazyWaffleMidi-linux.zip CrazyWaffleMidi-linux/
+          rm tmp CrazyWaffleMidi-linux -rf
+      - name: Create QtJambi bundled zipfle (MacOS)
+        if: runner.os == 'macOS'
+        env: 
+          QT_INSTALLER_JWT_TOKEN: ${{ secrets.QT_INSTALLER_JWT_TOKEN }}
+        shell: bash
+        run: |
+          curl -OL https://download.qt.io/official_releases/online_installers/qt-online-installer-macOS-universal.dmg
+          chmod +x qt-online-installer-macOS-universal.dmg
+          MOUNT_POINT="$(hdiutil attach -nobrowse -noautoopen \
+            qt-online-installer-macOS-universal.dmg \
+            | awk '/\/Volumes\// { print substr($0, index($0, "/Volumes/")); exit }')"
+
+          if [ -z "$MOUNT_POINT" ]; then
+            echo "Could not mount Qt installer disk image"
+            exit 1
+          fi
+
+          INSTALLER="$(find "$MOUNT_POINT" -type f \
+            -path '*/Contents/MacOS/*' \
+            -perm +111 -print -quit)"
+
+          if [ -z "$INSTALLER" ]; then
+            echo "Could not find installer executable in $MOUNT_POINT"
+            hdiutil detach "$MOUNT_POINT"
+            exit 1
+          fi
+
+          echo Accept | "$INSTALLER" \
+            --root "$PWD/qt" \
+            --accept-licenses \
+            --accept-obligations \
+            --default-answer \
+            --confirm-command \
+            install qt6.12.0-essentials
+
+          hdiutil detach "$MOUNT_POINT"
+
+          QT_LIB=qt/6.12.0/macos/lib/
+
+
+          if [ -z "$QT_LIB" ]; then
+            echo "Qt lib dir not found"
+            exit 1
+          fi
+
+          mkdir tmp
+          cp ./app/build/jmods/app.jar                                      tmp/app.jar
+          cp ./app/build/jmods/qtjambi-6.12.0.jar                           tmp/qtjambi-6.12.0.jar
+          cp ./app/build/jmods/qtjambi-deployer-6.12.0.jar                  tmp/qtjambi-deployer-6.12.0.jar
+
+          cp ./app/build/jmods/qtjambi-native-macos-6.12.0.jar          tmp/qtjambi-native-macos-6.12.0.jar
+          cp ./app/build/jmods/qtjambi-deployer-native-macos-6.12.0.jar tmp/qtjambi-deployer-native-macos-6.12.0.jar
+
+          java -Djava.library.path="$QT_LIB" \
+          -p tmp/qtjambi-6.12.0.jar:tmp/qtjambi-deployer-6.12.0.jar \
+          -m qtjambi.deployer app \
+          --application=CrazyWaffleMidi \
+          --class-path=CrazyWaffleMidi.app/Contents/lib/app.jar:CrazyWaffleMidi.app/Contents/lib/qtjambi-6.12.0.jar:CrazyWaffleMidi.app/Contents/lib/qtjambi-native-macos-6.12.0.jar \
+          --library-path=CrazyWaffleMidi.app/Contents/Frameworks \
+          --jvm-path=CrazyWaffleMidi.app/Contents/jre \
+          --main-class=com.cwm.CrazyWaffleMidi.Main \
+          --dir=output
+
+          rm tmp/*deployer*
+
+          jlink --module-path "$(/usr/libexec/java_home -v 21)/jmods" --add-modules ALL-MODULE-PATH \
+          --output output/CrazyWaffleMidi.app/Contents/jre --strip-debug --no-man-pages --no-header-files
+
+          mkdir output/CrazyWaffleMidi.app/Contents/lib/
+          cp tmp/app.jar                         output/CrazyWaffleMidi.app/Contents/lib/app.jar
+          cp tmp/qtjambi-6.12.0.jar              output/CrazyWaffleMidi.app/Contents/lib/qtjambi-6.12.0.jar
+          cp tmp/qtjambi-native-macos-6.12.0.jar output/CrazyWaffleMidi.app/Contents/lib/qtjambi-native-macos-6.12.0.jar
+
+          MACDEPLOYQT="$(cd "$QT_LIB/../bin" && pwd)/macdeployqt"
+
+          "$MACDEPLOYQT" "$PWD/output/CrazyWaffleMidi.app" -verbose=2
+
+          ditto -c -k --sequesterRsrc --keepParent output/CrazyWaffleMidi.app CrazyWaffleMidi-macos.zip
+      - name: Create QtJambi bundled zipfle (Windows)
+        if: runner.os == 'Windows'
+        env: 
+          QT_INSTALLER_JWT_TOKEN: ${{ secrets.QT_INSTALLER_JWT_TOKEN }}
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = "Stop"
+
+          # Install Qt 6.12.0 non-interactively
+          $Installer = Join-Path $PWD "qt-online-installer-windows-x64-online.exe"
+          $QtRoot = Join-Path $PWD "qt"
+          $QtKit = Join-Path $QtRoot "6.12.0\msvc2022_64"
+          $QtBin = Join-Path $QtKit "bin"
+
+          Invoke-WebRequest `
+            -Uri "https://download.qt.io/official_releases/online_installers/qt-online-installer-windows-x64-online.exe" `
+            -OutFile $Installer
+
+          & $Installer `
+            --root $QtRoot `
+            --accept-licenses `
+            --accept-obligations `
+            --default-answer `
+            --confirm-command `
+            install qt.qt6.6120.win64_msvc2022_64
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "Qt installation failed with exit code $LASTEXITCODE"
+          }
+
+          if (-not (Test-Path "$QtBin\windeployqt.exe")) {
+            throw "windeployqt.exe not found in $QtBin"
+          }
+
+          # Copy QtJambi JARs
+          New-Item -ItemType Directory -Force -Path tmp | Out-Null
+
+          Copy-Item ./app/build/jmods/app.jar tmp/
+          Copy-Item ./app/build/jmods/qtjambi-6.12.0.jar tmp/
+          Copy-Item ./app/build/jmods/qtjambi-deployer-6.12.0.jar tmp/
+
+          Copy-Item ./app/build/jmods/qtjambi-native-windows-x64-6.12.0.jar tmp/
+          Copy-Item ./app/build/jmods/qtjambi-deployer-native-windows-x64-6.12.0.jar tmp/
+
+          # Run the QtJambi deployer
+          java "-Djava.library.path=$QtBin" `
+            -p "tmp/qtjambi-6.12.0.jar;tmp/qtjambi-deployer-6.12.0.jar" `
+            -m qtjambi.deployer app `
+            --application=CrazyWaffleMidi `
+            --class-path="../lib/app.jar;../lib/qtjambi-6.12.0.jar;../lib/qtjambi-native-windows-x64-6.12.0.jar" `
+            --library-path=. `
+            --jvm-path=../jre `
+            --main-class=com.cwm.CrazyWaffleMidi.Main `
+            --dir=output
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "QtJambi deployer failed with exit code $LASTEXITCODE"
+          }
+
+          # Remove deployer-only JARs
+          Remove-Item tmp/*deployer* -Force
+
+          # Bundle a Java runtime
+          $JavaHome = $env:JAVA_HOME
+          & jlink `
+            --module-path "$JavaHome\jmods" `
+            --add-modules ALL-MODULE-PATH `
+            --output output/jre `
+            --strip-debug `
+            --no-man-pages `
+            --no-header-files
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "jlink failed with exit code $LASTEXITCODE"
+          }
+          
+          New-Item -ItemType Directory -Force -Path "output\lib" | Out-Null
+
+          # Ensure application JARs are in the distribution
+          Copy-Item tmp/app.jar output/lib/
+          Copy-Item tmp/qtjambi-6.12.0.jar output/lib/
+          Copy-Item tmp/qtjambi-native-windows-x64-6.12.0.jar output/lib/
+
+          # Deploy Qt DLLs and plugins
+          $AppExe = Join-Path $PWD "output\CrazyWaffleMidi.exe"
+
+          if (-not (Test-Path $AppExe)) {
+            throw "Expected application executable not found: $AppExe"
+          }
+
+          & "$QtBin\windeployqt.exe" --verbose 2 $AppExe
+
+          if ($LASTEXITCODE -ne 0) {
+            throw "windeployqt failed with exit code $LASTEXITCODE"
+          }
+
+          # Create release ZIP
+          Compress-Archive `
+            -Path output `
+            -DestinationPath CrazyWaffleMidi-windows.zip `
+            -Force
+
+          Remove-Item tmp -Recurse -Force
+      - name: Upload packaged zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-${{ matrix.platform }}
+          path: CrazyWaffleMidi-${{ matrix.platform }}.zip
+          if-no-files-found: error
+          retention-days: 1
+  release:
+    name: Publish GitHub Release
+    needs: package
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with: 
+          pattern: package-*
+          path: dist
+          merge-multiple: true
+      - name: Create and publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ inputs.version }}
+          name: CrazyWaffleMidi ${{ inputs.version }}
+          files: dist/*.zip
+          generate_release_notes: true
