@@ -1,23 +1,64 @@
 package com.cwm.CrazyWaffleMidi.audio;
 
-import java.util.HashMap;
+import java.util.Arrays;
 
 public class WaveformPlaybackData {
-    public HashMap<Integer, Byte> data;
+    private byte[] data;
+    private int sampleRate;
 
-    public WaveformPlaybackData() {
-        data = new HashMap<Integer, Byte>();
+    public WaveformPlaybackData(int maxSamples) {
+        data = new byte[maxSamples];
+        sampleRate = maxSamples;
+    }
+
+    public int maxSamples() {
+        return data.length;
     }
 
     public void add(Waveform form, int freq, int vol, int duration, int startTime) {
-        float ratePerMillis = (float) form.sampleRate() / 1000.0f;
-        int samples = Math.round(ratePerMillis * duration);
-        for (int i = 0; i < samples; i++) {
-            double progress = ((double) i/(double) form.sampleRate()) * freq;
-            float sample = form.get(progress)*vol;
-            byte value = (byte) Math.clamp(sample, -128, 127);
-            value = (byte) Math.clamp(value + data.get(i), -128, 127);
-            data.replace(i, value);
+        int startSample = Math.round((startTime / 1000.0f) * form.sampleRate());
+        int endSample = Math.round((duration / 1000.0f) * form.sampleRate()) + startSample;
+
+        if (form.sampleRate() > sampleRate) {
+            double factor = form.sampleRate() / sampleRate;
+            int newLength = (int) (data.length * factor);
+            stretchResizeData(newLength);
+            sampleRate = form.sampleRate();
         }
+
+        if (maxSamples() < endSample) {
+            emptyResizeData(endSample);
+        }
+        System.out.println(data.length);
+        System.out.println(startSample);
+        System.out.println(endSample);
+        for (int i = startSample; i < endSample; i++) {
+            double progress = ((double) (i - startSample) / (double) form.sampleRate()) * freq;
+            float sample = form.get(progress) * vol;
+            data[i] += (byte) Math.clamp(sample, -128, 127);
+        }
+    }
+    public void stretchResizeData(int length) {
+        byte[] newData = new byte[length];
+        for (int i = 0; i < length; i++) {
+            newData[i] = data[(int) Math.floor(((float) i / (float) length) * data.length)];
+        }
+        data = newData.clone();
+    }
+    public void repeatResizeData(int length) {
+        byte[] newData = new byte[length];
+        for (int i = 0; i < length; i++) {
+            newData[i] = data[i % data.length];
+        }
+        data = newData.clone();
+    }
+    public void emptyResizeData(int length) {
+        data = Arrays.copyOf(data, length);
+    }
+    public byte[] getData() {
+        return data.clone();
+    }
+    public int sampleRate() {
+        return sampleRate;
     }
 }
