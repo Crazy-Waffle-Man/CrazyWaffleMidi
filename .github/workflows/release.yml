@@ -121,10 +121,7 @@ jobs:
 
           hdiutil detach "$MOUNT_POINT"
 
-          brew install tree
-          tree -d
-          exit 1
-          QT_LIB=qt/macos/lib/
+          QT_LIB=qt/6.12.0/macos/lib/
 
 
           if [ -z "$QT_LIB" ]; then
