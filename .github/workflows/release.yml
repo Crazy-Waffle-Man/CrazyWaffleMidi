@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           sudo apt-get update
-          sudo apt-get install -y libxkbcommon-x11-0
+          sudo apt-get install -y libxkbcommon-x11-0 libxcb-icccm4 libxcb-image0 libxcb keysyms1 libxcb-render-util- libxcb-xinerama0 libxcb-xkb1 libxcb-cursor0
       - name: Create QtJambi bundled zipfile (Linux)
         if: runner.os == 'Linux'
         env: 
@@ -111,7 +111,7 @@ jobs:
             exit 1
           fi
 
-          "$INSTALLER" \
+          echo Accept | "$INSTALLER" \
             --root "$PWD/qt" \
             --accept-licenses \
             --default-answer \
@@ -197,7 +197,7 @@ jobs:
           Copy-Item ./app/build/jmods/qtjambi-deployer-native-windows-x64-6.12.0.jar tmp/
 
           # Run the QtJambi deployer
-          & java "-Djava.library.path=$QtBin" `
+          java "-Djava.library.path=$QtBin" `
             -p "tmp/qtjambi-6.12.0.jar;tmp/qtjambi-deployer-6.12.0.jar" `
             -m qtjambi.deployer app `
             --application=CrazyWaffleMidi `
@@ -227,6 +227,8 @@ jobs:
           if ($LASTEXITCODE -ne 0) {
             throw "jlink failed with exit code $LASTEXITCODE"
           }
+          
+          New-Item -ItemType Directory -Force -Path "output\lib" | Out-Null
 
           # Ensure application JARs are in the distribution
           Copy-Item tmp/app.jar output/lib/
