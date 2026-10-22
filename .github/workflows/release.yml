@@ -157,7 +157,9 @@ jobs:
           cp tmp/qtjambi-6.12.0.jar              output/CrazyWaffleMidi.app/Contents/lib/qtjambi-6.12.0.jar
           cp tmp/qtjambi-native-macos-6.12.0.jar output/CrazyWaffleMidi.app/Contents/lib/qtjambi-native-macos-6.12.0.jar
 
-          $QT_LIB/../bin/macdeployqt output/CrazyWaffleMidi.app -verbose=2
+          MACDEPLOYQT="$(cd "$QT_LIB/../bin" && pwd)/macdeployqt"
+
+          "$MACDEPLOYQT" "$PWD/output/CrazyWaffleMidi.app" -verbose=2
 
           ditto -c -k --sequesterRsrc --keepParent output/CrazyWaffleMidi.app CrazyWaffleMidi-macos.zip
       - name: Create QtJambi bundled zipfle (Windows)
