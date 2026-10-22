@@ -37,6 +37,12 @@ jobs:
       - name: Gradle build
         run: | 
           ./gradlew build
+      - name: Install Qt installer dependencies
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-x11-0
       - name: Create QtJambi bundled zipfile (Linux)
         if: runner.os == 'Linux'
         env: 
@@ -86,7 +92,33 @@ jobs:
         run: |
           curl -OL https://download.qt.io/official_releases/online_installers/qt-online-installer-macOS-universal.dmg
           chmod +x qt-online-installer-macOS-universal.dmg
-          echo Accept | ./qt-online-installer-macOS-universal.dmg --root $(pwd)/qt --accept-licenses --default-answer --confirm-command install qt6.12.0-essentials
+          MOUNT_POINT="$(hdiutil attach -nobrowse -noautoopen \
+            qt-online-installer-macOS-universal.dmg \
+            | awk '/\/Volumes\// { print substr($0, index($0, "/Volumes/")); exit }')"
+
+          if [ -z "$MOUNT_POINT" ]; then
+            echo "Could not mount Qt installer disk image"
+            exit 1
+          fi
+
+          INSTALLER="$(find "$MOUNT_POINT" -type f \
+            -path '*/Contents/MacOS/*' \
+            -perm +111 -print -quit)"
+
+          if [ -z "$INSTALLER" ]; then
+            echo "Could not find installer executable in $MOUNT_POINT"
+            hdiutil detach "$MOUNT_POINT"
+            exit 1
+          fi
+
+          "$INSTALLER" \
+            --root "$PWD/qt" \
+            --accept-licenses \
+            --default-answer \
+            --confirm-command \
+            install qt6.12.0-essentials
+
+          hdiutil detach "$MOUNT_POINT"
 
           QT_LIB = find "$PWD/qt" -maxdepth 4 -type d -name lib
 
@@ -169,9 +201,9 @@ jobs:
             -p "tmp/qtjambi-6.12.0.jar;tmp/qtjambi-deployer-6.12.0.jar" `
             -m qtjambi.deployer app `
             --application=CrazyWaffleMidi `
-            --class-path="lib/app.jar;lib/qtjambi-6.12.0.jar;lib/qtjambi-native-windows-x64-6.12.0.jar" `
-            --library-path=lib `
-            --jvm-path=jre `
+            --class-path="../lib/app.jar;../lib/qtjambi-6.12.0.jar;../lib/qtjambi-native-windows-x64-6.12.0.jar" `
+            --library-path=. `
+            --jvm-path=../jre `
             --main-class=com.cwm.CrazyWaffleMidi.Main `
             --dir=output
 
