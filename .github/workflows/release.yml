@@ -23,7 +23,7 @@ jobs:
             name: Linux
             platform: linux
     runs-on: ${{ matrix.os }}
-    name: Package for ${{ matrix.os }}
+    name: Package for ${{ matrix.name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
