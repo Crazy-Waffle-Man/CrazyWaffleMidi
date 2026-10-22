@@ -121,9 +121,8 @@ jobs:
 
           hdiutil detach "$MOUNT_POINT"
 
-          QT_LIB="$(find "$PWD/qt" -maxdepth 4 -type d -name lib -print -quit)"
+          QT_LIB=qt/macos/lib/
 
-          ls -R qt
 
           if [ -z "$QT_LIB" ]; then
             echo "Qt lib dir not found"
