@@ -7,8 +7,11 @@ import io.qt.widgets.QApplication;
 
 public class Main {
     public static void main(String[] args) {
-        if (args[0] == "--audio-test") {
-            AudioPlayer.main(args);
+        for (String arg : args) {
+            if (arg == "--audio-test") {
+                AudioPlayer.main(args);
+                break;
+            }
         }
         QApplication.initialize(args);
         new MainWindow();
