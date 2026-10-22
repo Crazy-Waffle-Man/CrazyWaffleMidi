@@ -26,12 +26,13 @@ public class AudioPlayer {
 
             wpd = new WaveformPlaybackData(100);
             MidiNoteSequence chord = new MidiNoteSequence();
-            chord.addMidiNote(60, 0, 4 * PianoRollViewState.ticksPerQuarter, 50);
-            chord.addMidiNote(64, PianoRollViewState.ticksPerQuarter, 3 * PianoRollViewState.ticksPerQuarter, 50);
-            chord.addMidiNote(67, 2 * PianoRollViewState.ticksPerQuarter, 2 * PianoRollViewState.ticksPerQuarter, 50);
+            chord.addMidiNote(60, 1, 4 * PianoRollViewState.ticksPerQuarter, 50);
+            chord.addMidiNote(64, PianoRollViewState.ticksPerQuarter, 4 * PianoRollViewState.ticksPerQuarter, 50);
+            chord.addMidiNote(67, 2 * PianoRollViewState.ticksPerQuarter, 4 * PianoRollViewState.ticksPerQuarter, 50);
             for (MidiNote c : chord) {
-                wpd.add(Waveform.SINE, c, 1);
+                wpd.add(Waveform.SQUARE, c, 1);
             }
+            createTone(wpd);
         } catch (LineUnavailableException e) {
             e.printStackTrace();
         }

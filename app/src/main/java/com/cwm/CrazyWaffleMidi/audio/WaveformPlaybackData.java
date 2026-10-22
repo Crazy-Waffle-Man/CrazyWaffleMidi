@@ -55,19 +55,22 @@ public class WaveformPlaybackData {
         if (maxSamples() < endSample) {
             emptyResizeData(endSample);
         }
-        System.out.println(data.length);
-        System.out.println(startSample);
-        System.out.println(endSample);
         for (int i = startSample; i < endSample; i++) {
             double progress = ((double) (i - startSample) / (double) form.sampleRate()) * freq;
             float sample = form.get(progress) * vol;
-            data[i] += (byte) Math.clamp(sample, -128, 127);
+            data[i] = (byte) Math.clamp(data[i] + sample, -128, 127);
         }
     }
     public void add(MidiNote note, int millisPerTick) {
         add(Waveform.SINE, note, millisPerTick);
     }
     public void add(Waveform form, MidiNote note, int millisPerTick) {
-        add(form, note.getFrequency(), note.velocity(), (int) (note.durationTicks() * millisPerTick), (int) (note.startTick() * millisPerTick));
+        add(
+            form, 
+            note.getFrequency(), 
+            note.velocity(), 
+            (int) (note.durationTicks() * millisPerTick), 
+            (int) (note.startTick() * millisPerTick)
+        );
     }
 }
