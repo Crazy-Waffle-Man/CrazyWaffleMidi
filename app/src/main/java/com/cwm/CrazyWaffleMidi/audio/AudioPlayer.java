@@ -96,4 +96,11 @@ public class AudioPlayer {
         dataLine.stop();
         dataLine.close();
     }
+    public static void createTone(MidiNoteSequence seq) {
+        try {
+            createTone(new WaveformPlaybackData(seq));
+        } catch (LineUnavailableException e) {
+            e.printStackTrace();
+        }
+    }
 }

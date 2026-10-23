@@ -3,6 +3,7 @@ package com.cwm.CrazyWaffleMidi.audio;
 import java.util.Arrays;
 
 import com.cwm.CrazyWaffleMidi.midi.MidiNote;
+import com.cwm.CrazyWaffleMidi.midi.MidiNoteSequence;
 
 public class WaveformPlaybackData {
     private byte[] data;
@@ -11,6 +12,14 @@ public class WaveformPlaybackData {
     public WaveformPlaybackData(int maxSamples) {
         data = new byte[maxSamples];
         sampleRate = maxSamples;
+    }
+
+    public WaveformPlaybackData(MidiNoteSequence seq) {
+        data = new byte[100];
+        sampleRate = 100;
+        for (MidiNote note : seq) {
+            add(note, 1);
+        }
     }
 
     public int maxSamples() {
