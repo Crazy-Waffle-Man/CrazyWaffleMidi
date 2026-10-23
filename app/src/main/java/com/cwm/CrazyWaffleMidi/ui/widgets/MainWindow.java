@@ -81,7 +81,14 @@ public class MainWindow extends QMainWindow {
 
         edit.addAction(track);
 
-        track.triggered.connect(()->AudioPlayer.createTone(centralWidget.notes));
+        track.triggered.connect(
+            () -> {
+                Thread t = new Thread(
+                    ()->AudioPlayer.createTone(centralWidget.notes)
+                );
+                t.start();
+            }
+        );
 
         edit.addAction(pianoRoll);
         edit.addAction(synth);
