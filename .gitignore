@@ -4,6 +4,9 @@
 # Ignore Gradle build output directory
 build
 
+# Something keeps compiling my program into this directory and I need it to stop.
+app/bin
+
 # Ignore Kotlin plugin data
 .kotlin
 

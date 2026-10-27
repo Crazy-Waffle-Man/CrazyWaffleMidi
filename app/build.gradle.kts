@@ -18,6 +18,8 @@ repositories {
     mavenCentral()
 }
 
+val os = System.getProperty("os.name").lowercase()
+
 dependencies {
     // Use JUnit Jupiter for testing.
     // testImplementation(libs.junit.jupiter)
@@ -28,12 +30,22 @@ dependencies {
     // implementation(libs.guava)
     implementation("io.qtjambi:qtjambi:6.12.0")
     runtimeOnly("io.qtjambi:qtjambi-deployer:6.12.0")
-    runtimeOnly("io.qtjambi:qtjambi-native-linux-x64:6.12.0")
-    runtimeOnly("io.qtjambi:qtjambi-native-macos:6.12.0")
-    runtimeOnly("io.qtjambi:qtjambi-native-windows-x64:6.12.0")
-    runtimeOnly("io.qtjambi:qtjambi-deployer-native-linux-x64:6.12.0")
-    runtimeOnly("io.qtjambi:qtjambi-deployer-native-macos:6.12.0")
-    runtimeOnly("io.qtjambi:qtjambi-deployer-native-windows-x64:6.12.0")
+    when {
+        os.contains("linux") -> {
+            runtimeOnly("io.qtjambi:qtjambi-native-linux-x64:6.12.0")
+            runtimeOnly("io.qtjambi:qtjambi-deployer-native-linux-x64:6.12.0")
+        }
+
+        os.contains("mac") -> {
+            runtimeOnly("io.qtjambi:qtjambi-native-macos:6.12.0")
+            runtimeOnly("io.qtjambi:qtjambi-deployer-native-macos:6.12.0")
+        }
+
+        os.contains("windows") -> {
+            runtimeOnly("io.qtjambi:qtjambi-native-windows-x64:6.12.0")
+            runtimeOnly("io.qtjambi:qtjambi-deployer-native-windows-x64:6.12.0")
+        }
+    }
 }
 
 // Apply a specific Java toolchain to ease working on different environments.
@@ -64,27 +76,3 @@ tasks.register("copyJar", Copy::class) {
 tasks.named("build") {
     dependsOn("copyDependencies", "copyJar")
 }
-
-// tasks.jpackage {
-//     dependsOn("build", "copyDependencies", "copyJar")
-
-//     appName = "CrazyWaffleMidi"
-//     appVersion = project.version.toString()
-//     appDescription = "Scuffed MIDI sequencer"
-//     vendor = "Crazy_Waffle_Man"
-//     runtimeImage = File(System.getProperty("java.home"))
-//     module = "com.cwm.CrazyWaffleMidi.Main"
-//     modulePaths.setFrom(tasks.named("copyJar"))
-//     destination = layout.buildDirectory.dir("dist")
-//     javaOptions = listOf("-Dfile.encoding=UTF-8")  
-
-//     windows {
-//         type = ImageType.EXE
-//     }
-//     mac {
-//         type = ImageType.DEFAULT
-//     }
-//     linux {
-//         type = ImageType.APP_IMAGE
-//     }
-// }
