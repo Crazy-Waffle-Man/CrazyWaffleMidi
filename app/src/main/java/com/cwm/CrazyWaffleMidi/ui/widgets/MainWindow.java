@@ -26,6 +26,7 @@ public class MainWindow extends QMainWindow {
     public QAction zoomIn = new QAction(this);
     public QAction zoomOut = new QAction(this);
     public QAction resetZoom = new QAction(this);
+    public QAction play = new QAction(this);
     public NoteCanvas centralWidget = new NoteCanvas(new MidiNoteSequence()); //TODO: replace with PianoRollWidget when it's ready
     public QVBoxLayout verticalLayout = new QVBoxLayout(this);
     public QMenuBar menuBar = new QMenuBar(this);
@@ -52,6 +53,7 @@ public class MainWindow extends QMainWindow {
         zoomIn.setObjectName("action_zoom_in");
         zoomOut.setObjectName("action_zoom_out");
         resetZoom.setObjectName("action_reset_zoom");
+        play.setObjectName("action_play");
 
         centralWidget.setObjectName("central_widget");
 
@@ -79,16 +81,10 @@ public class MainWindow extends QMainWindow {
         export.addAction(mp3);
         export.addAction(ogg);
 
+        edit.addAction(play);
         edit.addAction(track);
 
-        track.triggered.connect(
-            () -> {
-                Thread t = new Thread(
-                    ()->AudioPlayer.createTone(centralWidget.notes)
-                );
-                t.start();
-            }
-        );
+        play.triggered.connect(()->MenuFunctions.play());
 
         edit.addAction(pianoRoll);
         edit.addAction(synth);
