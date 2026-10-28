@@ -1,6 +1,7 @@
 package com.cwm.CrazyWaffleMidi.ui.widgets;
 
 import com.cwm.CrazyWaffleMidi.Properties;
+import com.cwm.CrazyWaffleMidi.audio.AudioPlayer;
 import com.cwm.CrazyWaffleMidi.midi.MidiNoteSequence;
 
 import io.qt.core.QCoreApplication;
@@ -79,6 +80,16 @@ public class MainWindow extends QMainWindow {
         export.addAction(ogg);
 
         edit.addAction(track);
+
+        track.triggered.connect(
+            () -> {
+                Thread t = new Thread(
+                    ()->AudioPlayer.createTone(centralWidget.notes)
+                );
+                t.start();
+            }
+        );
+
         edit.addAction(pianoRoll);
         edit.addAction(synth);
 

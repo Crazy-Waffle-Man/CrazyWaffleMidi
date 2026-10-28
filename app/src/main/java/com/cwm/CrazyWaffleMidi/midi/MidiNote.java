@@ -48,18 +48,9 @@ public class MidiNote {
     public long endTick() {
         return startTick + durationTicks;
     }
-
-    public void play(Waveform form) {
-        try {
-            AudioPlayer.createTone(form, getFrequency(), velocity, (int) (durationTicks / PianoRollViewState.ticksPerQuarter) * 1000);
-        } catch (LineUnavailableException e) {
-            e.printStackTrace();
-        }
-    }
     public int getFrequency() {
-        return (int) Math.round(Math.pow(2, ((double)(pitch - 69)) / 12.0d) * 440);
+        return (int) Math.round(440 * Math.pow(2.0d, (pitch - 69.0d) / 12.0d));
     }
-
     public void setPitch(int pitch) {
         this.pitch = Math.clamp(pitch, 0, 127);
     }

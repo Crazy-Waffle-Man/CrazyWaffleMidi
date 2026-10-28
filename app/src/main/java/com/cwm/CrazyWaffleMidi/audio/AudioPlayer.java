@@ -18,13 +18,21 @@ public class AudioPlayer {
             createTone(Waveform.SAWTOOTH, 440, 50, 250);
             createTone(Waveform.SQUARE, 220, 50, 500);
             createTone(Waveform.TRIANGLE, 880, 50, 750);
-            MidiNoteSequence seq = new MidiNoteSequence();
-            for (int i = 64; i <= 64 + 13; i++) {
-                seq.addMidiNote(i, PianoRollViewState.ticksPerQuarter * (i - 64), PianoRollViewState.ticksPerQuarter, 50);
+
+            WaveformPlaybackData wpd = new WaveformPlaybackData(100);
+            wpd.add(Waveform.SINE, 440, 50, 5000, 0);
+            wpd.add(Waveform.SAWTOOTH, 660, 50, 4000, 100);
+            createTone(wpd);
+
+            wpd = new WaveformPlaybackData(100);
+            MidiNoteSequence chord = new MidiNoteSequence();
+            chord.addMidiNote(60, 1, 4 * PianoRollViewState.ticksPerQuarter, 50);
+            chord.addMidiNote(64, PianoRollViewState.ticksPerQuarter, 4 * PianoRollViewState.ticksPerQuarter, 50);
+            chord.addMidiNote(67, 2 * PianoRollViewState.ticksPerQuarter, 4 * PianoRollViewState.ticksPerQuarter, 50);
+            for (MidiNote c : chord) {
+                wpd.add(Waveform.SQUARE, c, 1);
             }
-            for (MidiNote note : seq) {
-                note.play(Waveform.SQUARE);
-            }
+            createTone(wpd);
         } catch (LineUnavailableException e) {
             e.printStackTrace();
         }
@@ -77,5 +85,22 @@ public class AudioPlayer {
         dataLine.drain();
         dataLine.stop();
         dataLine.close();
+    }
+    public static void createTone(WaveformPlaybackData data) throws LineUnavailableException {
+        AudioFormat format = new AudioFormat(data.sampleRate(), 8, 1, true, false);
+        SourceDataLine dataLine = AudioSystem.getSourceDataLine(format);
+        dataLine.open(format);
+        dataLine.start();
+        dataLine.write(data.getData(), 0, data.getData().length);
+        dataLine.drain();
+        dataLine.stop();
+        dataLine.close();
+    }
+    public static void createTone(MidiNoteSequence seq) {
+        try {
+            createTone(new WaveformPlaybackData(seq));
+        } catch (LineUnavailableException e) {
+            e.printStackTrace();
+        }
     }
 }
