@@ -672,3 +672,12 @@ may consider it more useful to permit linking proprietary applications with
 the library.  If this is what you want to do, use the GNU Lesser General
 Public License instead of this License.  But first, please read
 <https://www.gnu.org/licenses/why-not-lgpl.html>.
+
+
+
+
+
+Addendum by Crazy-Waffle-Man:
+To the extent possible without modifying other terms set out beforehand, the 
+code in this repository must not, under any circumstances, be used as 
+training data for a large language model or any other form of AI.
