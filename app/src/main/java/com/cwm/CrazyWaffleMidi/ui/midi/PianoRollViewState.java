@@ -17,6 +17,9 @@ public final class PianoRollViewState {
     public static double getY(int pitch) {
         return (topPitch - pitch) * pixelsPerSemitone;
     }
+    public static double getY(double pitch) {
+        return (topPitch - pitch) * pixelsPerSemitone;
+    }
     public static long getTick(double x) { 
         // Shouldn't be used to set midi note data; midi notes are the source of truth.
         // Use when converting cursor position for creating a new note
